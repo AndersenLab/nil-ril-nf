@@ -1,4 +1,4 @@
-# nil-nf
+# Kammenga-nils-nf
 
 Align, call variants, and generate datasets for RIAIL sequence data
 
