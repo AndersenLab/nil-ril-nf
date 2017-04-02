@@ -1,5 +1,4 @@
 #!/usr/bin/env nextflow
-//directory = '/projects/b1059/data/fastq/WI/dna/processed/**/'
 /*
     Filtering configuration
 */
@@ -12,7 +11,7 @@ cross_object_script=file("generate_cross_object.R")
     Set these parameters in nextflow.config
 */
 date = new Date().format( 'yyyy-MM-dd' )
-tmpdir = config.tmpdir
+tmpdir = config.tmpDir
 reference = config.reference
 cores = config.cores
 analysis_dir = config.analysis_dir
@@ -23,30 +22,14 @@ call_variant_cpus = config.call_variant_cpus
 contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"]
 contigs = Channel.from(contig_list)
 
-println "Processing RIL Data"
+println "Processing NIL Data"
 println "Using Reference: ${reference}" 
 
 // Construct strain and isotype lists
 import groovy.json.JsonSlurper
 
-strainFile = new File("fq_ril_sheet.tsv")
+strainFile = new File("fq_nil_sheet.tsv")
 fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
-
-process setup_dirs {
-
-    executor 'local'
-
-    publishDir analysis_dir, mode: 'copy'
-
-    input:
-        file("fq_ril_sheet.tsv") from Channel.fromPath("fq_ril_sheet.tsv")
-
-    output:
-        file("fq_ril_sheet.tsv")
-
-    """
-    """
-}
 
 /*
     Fastq alignment
@@ -229,7 +212,6 @@ merged_SM.into {
                 bams_idxstats;
                 merged_bams_for_coverage;
                 merged_bams_union;
-                fq_concordance_bams;
                 }
 
 
@@ -378,66 +360,6 @@ union_vcf_channel = merged_bams_union.spread(site_list_one)
 fq_concordance_sitelist = fq_concordance_bams.spread(site_list_two)
 
 
-/* 
-    Call variants at the individual level for concordance
-*/
-
-fq_concordance_script = file("fq_concordance.R")
-
-process fq_concordance {
-
-    cpus call_variant_cpus
-
-    tag { SM }
-
-    input:
-        set val(SM), file("input.bam"), file("input.bam.bai"), file('sitelist.tsv.gz'), file('sitelist.tsv.gz.tbi') from fq_concordance_sitelist
-
-    output:
-        file('out.tsv') into fq_concordance_out
-
-    """
-        # Split bam file into individual read groups; Ignore MtDNA
-        contigs="`samtools view -H input.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40 | grep -v 'MtDNA' | tr ' ' '\\n'`"
-        rg_list="`samtools view -H input.bam | grep '@RG' | grep -oP 'ID:([^ \\t]+)' | sed 's/ID://g'`"
-        samtools split -f '%!.%.' input.bam
-        # DO NOT INDEX ORIGINAL BAM; ELIMINATES CACHE!
-        bam_list="`ls -1 *.bam | grep -v 'input.bam'`"
-
-        ls -1 *.bam | grep -v 'input.bam' | xargs --verbose -I {} -P ${call_variant_cpus} sh -c "samtools index {}"
-
-        # Call a union set of variants
-        for rg in \$rg_list; do
-            echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${call_variant_cpus} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,SP --fasta-ref ${reference} \${rg}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels --multiallelic-caller -O z > {}.\${rg}.vcf.gz"
-            order=`echo \${contigs} | tr ' ' '\\n' | awk -v rg=\${rg} '{ print \$1 "." rg ".vcf.gz" }'`
-            # Output variant sites
-            bcftools concat \${order} -O v | \\
-            vk geno het-polarization - | \\
-            bcftools query -f '%CHROM\\t%POS[\\t%GT\\t${SM}\\n]' | grep -v '0/1' | awk -v rg=\${rg} '{ print \$0 "\\t" rg }' > \${rg}.rg_gt.tsv
-        done;
-        cat *.rg_gt.tsv > rg_gt.tsv
-        touch out.tsv
-        Rscript --vanilla ${fq_concordance_script} 
-    """
-}
-
-process combine_fq_concordance {
-
-    publishDir analysis_dir + "/concordance", mode: 'copy', overwrite: true
-
-    input:
-        file("out*.tsv") from fq_concordance_out.toSortedList()
-
-    output:
-        file("fq_concordance.tsv")
-
-    """
-        cat <(echo 'a\tb\tconcordant_sites\ttotal_sites\tconcordance\tSM') out*.tsv > fq_concordance.tsv
-    """
-
-
-}
-
 /*
     Call variants
 */
@@ -539,15 +461,15 @@ process filter_union_vcf {
         set file("merged.raw.vcf.gz"), file("merged.raw.vcf.gz.csi") from raw_vcf_concatenated
 
     output:
-        set file("RIL.filter.vcf.gz"), file("RIL.filter.vcf.gz.csi") into filtered_vcf
+        set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") into filtered_vcf
 
     """
 
         bcftools view merged.raw.vcf.gz | \\
         vk geno het-polarization - | \\
         bcftools filter --set-GTs . --exclude '((FORMAT/AD[1])/(FORMAT/DP) < 0.75 && FORMAT/GT == "1/1")' - | \\
-        bcftools view -O z - > RIL.filter.vcf.gz
-        bcftools index -f RIL.filter.vcf.gz
+        bcftools view -O z - > NIL.filter.vcf.gz
+        bcftools index -f NIL.filter.vcf.gz
     """
 }
 
@@ -559,13 +481,13 @@ process stat_tsv {
     publishDir analysis_dir + "/vcf", mode: 'copy'
 
     input:
-        set file("RIL.filter.vcf.gz"), file("RIL.filter.vcf.gz.csi")  from filtered_vcf_stat
+        set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi")  from filtered_vcf_stat
 
     output:
-        file("RIL.filtered.stats.txt")
+        file("NIL.filtered.stats.txt")
 
     """
-        bcftools stats --verbose RIL.filter.vcf.gz > RIL.filtered.stats.txt
+        bcftools stats --verbose NIL.filter.vcf.gz > NIL.filtered.stats.txt
     """
 
 }
@@ -575,7 +497,7 @@ process output_hmm {
     publishDir analysis_dir + "/vcf", mode: 'copy'
 
     input:
-        set file("RIL.filter.vcf.gz"), file("RIL.filter.vcf.gz.csi") from hmm_vcf
+        set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf
 
     output:
         file("gt_hmm.tsv")
@@ -583,7 +505,7 @@ process output_hmm {
     """
         pyenv local anaconda2-4.2.0
         export QT_QPA_PLATFORM=offscreen
-        vk hmm --alt=ALT RIL.filter.vcf.gz > gt_hmm.tsv
+        vk hmm --alt=ALT NIL.filter.vcf.gz > gt_hmm.tsv
     """
 
 }
@@ -593,7 +515,7 @@ process output_hmm_clean {
     publishDir analysis_dir + "/vcf", mode: 'copy'
 
     input:
-        set file("RIL.filter.vcf.gz"), file("RIL.filter.vcf.gz.csi") from hmm_vcf_clean
+        set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf_clean
 
     output:
         file("gt_hmm_fill.tsv") into gt_hmm_fill
@@ -603,7 +525,7 @@ process output_hmm_clean {
     """
         pyenv local anaconda2-4.2.0
         export QT_QPA_PLATFORM=offscreen
-        vk hmm --infill --endfill --alt=ALT RIL.filter.vcf.gz > gt_hmm_fill.tsv
+        vk hmm --infill --endfill --alt=ALT NIL.filter.vcf.gz > gt_hmm_fill.tsv
     """
 
 }
@@ -615,16 +537,16 @@ process output_hmm_vcf {
     publishDir analysis_dir + "/vcf", mode: 'copy'
 
     input:
-        set file("RIL.vcf.gz"), file("RIL.vcf.gz.csi") from hmm_vcf_out
+        set file("NIL.vcf.gz"), file("NIL.vcf.gz.csi") from hmm_vcf_out
 
     output:
-        set file("RIL.hmm.vcf.gz"), file("RIL.hmm.vcf.gz.csi") into gt_hmm
+        set file("NIL.hmm.vcf.gz"), file("NIL.hmm.vcf.gz.csi") into gt_hmm
 
     """
         pyenv local anaconda2-4.2.0
         export QT_QPA_PLATFORM=offscreen
-        vk hmm --vcf-out --all-sites --alt=ALT RIL.vcf.gz | bcftools view -O z > RIL.hmm.vcf.gz
-        bcftools index RIL.hmm.vcf.gz
+        vk hmm --vcf-out --all-sites --alt=ALT NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
+        bcftools index NIL.hmm.vcf.gz
     """
 
 }
@@ -679,65 +601,13 @@ process output_tsv {
     publishDir analysis_dir + "/hmm", mode: 'copy'
 
     input:
-        set file("RIL.hmm.vcf.gz"), file("RIL.hmm.vcf.gz.csi") from gt_hmm_tsv
+        set file("NIL.hmm.vcf.gz"), file("NIL.hmm.vcf.gz.csi") from gt_hmm_tsv
 
     output:
         file("gt_hmm.tsv")
 
     """
-        cat <(echo -e "CHROM\tPOS\tSAMPLE\tGT\tGT_ORIG\tAD") <(bcftools query -f '[%CHROM\t%POS\t%SAMPLE\t%GT\t%GT_ORIG\t%AD\n]' RIL.hmm.vcf.gz | sed 's/0\\/0/0/g' | sed 's/1\\/1/1/g') > gt_hmm.tsv
+        cat <(echo -e "CHROM\tPOS\tSAMPLE\tGT\tGT_ORIG\tAD") <(bcftools query -f '[%CHROM\t%POS\t%SAMPLE\t%GT\t%GT_ORIG\t%AD\n]' NIL.hmm.vcf.gz | sed 's/0\\/0/0/g' | sed 's/1\\/1/1/g') > gt_hmm.tsv
     """
 
-}
-
-process generate_cross_object {
-
-    publishDir analysis_dir + "/cross_object", mode: 'copy'
-
-    input:
-        set file("RIL.hmm.vcf.gz"), file("RIL.hmm.vcf.gz.csi") from gt_hmm_vcf
-        file("SM_coverage.tsv") from SM_coverage_cross_obj
-        file("gt_hmm_fill.tsv") from gt_hmm_fill_cross_obj
-
-    output:
-        file("cross_obj.Rdata")
-        file("cross_obj_geno.tsv")
-        file("cross_obj_pheno.tsv")
-        file("cross_obj_strains.tsv")
-        file("breakpoint_sites.tsv.gz")
-
-    """
-
-    # Generate breakpoint sites
-    cat <(cut -f 1,2 gt_hmm_fill.tsv) <(cut -f 1,3 gt_hmm_fill.tsv) |\
-    grep -v 'chrom' |\
-    sort -k1,1 -k2,2n |\
-    uniq > breakpoint_sites.tsv
-    bgzip breakpoint_sites.tsv -c > breakpoint_sites.tsv.gz && tabix -s1 -b2 -e2 breakpoint_sites.tsv.gz
-
-    # Generate output strains list
-    awk  '\$2 > 1 && \$2 != "coverage" { print }'  SM_coverage.tsv  |\
-    cut -f 1 |\
-    grep -v 'N2' |\
-    grep -v 'CB4856' |\
-    grep -v 'QX1430' |\
-    sort -V > cross_obj_strains.tsv
-
-    paste <(echo -e "strain\\t\\t") <(cat cross_obj_strains.tsv| tr '\n' '\t' | sed 's/\t\$//g') > cross_obj_geno.tsv
-    bcftools view -T breakpoint_sites.tsv.gz -m 2 -M 2 RIL.hmm.vcf.gz |\
-    bcftools query --samples-file cross_obj_strains.tsv -f '%CHROM\\_%POS\\t%CHROM\\t%POS[\\t%GT]\n' |\
-    awk  -v OFS='\t' '''
-            {   
-                gsub("0/0", "N", \$0);
-                gsub("1/1", "C", \$0);
-                gsub("./.","", \$0);
-                gsub("X","Xchr", \$0);
-                \$3;
-                print
-            }
-        ''' - >> cross_obj_geno.tsv
-
-    Rscript ${cross_object_script}
-
-    """
 }
