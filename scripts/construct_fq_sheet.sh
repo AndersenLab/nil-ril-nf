@@ -6,7 +6,7 @@ ls -1 ${prefix} | grep 'R1' | awk -v prefix=${prefix} '{
                             SM = a[1]; 
                             gsub("-","",a[2]); // LB
                             ID = a[1] "_" a[2];
-                            fq2 = $1; gsub("_R1_", "_R2_", fq2);
+                            fq2 = $1; gsub("_R1", "_R2", fq2);
                             print SM "\t" ID "\t" a[2] "\t" prefix "/" $1 "\t" prefix "/" fq2;
                             }' > fq_temp.tsv
 
