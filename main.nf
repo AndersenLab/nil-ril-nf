@@ -212,6 +212,7 @@ merged_SM.into {
                 bams_idxstats;
                 merged_bams_for_coverage;
                 merged_bams_union;
+                merged_bams_union_JUPD;
                 }
 
 
@@ -354,9 +355,13 @@ process SM_coverage_merge {
     Call variants using the merged site list
 */
 
+
+all_bams = merged_bams_union.filter( ~/^(CB|ew|N2|).*/)
+JU_PD_bams = merged_bams_union_JUPD.filter( ~/^(JU|PD).*/)
+
 site_list =  site_list.spread(site_list_index)
 site_list.into { site_list_one; site_list_two }
-union_vcf_channel = merged_bams_union.spread(site_list_one)
+union_vcf_channel = all_bams.spread(site_list_one)
 
 
 /*
@@ -387,6 +392,38 @@ process call_variants_union {
 
         # Output variant sites
         bcftools concat \${order} -O v | vk geno het-polarization - | bcftools view -O z > ${SM}.union.vcf.gz
+        bcftools index ${SM}.union.vcf.gz
+        rm \${order}
+    """
+
+}
+
+process call_jupd {
+
+    echo true
+
+    cpus call_variant_cpus
+
+    tag { SM }
+
+    publishDir analysis_dir + "/JUPD_vcf", mode: 'copy'
+
+    input:
+        set SM, file("${SM}.bam"), file("${SM}.bam.bai") from JU_PD_bams
+
+    output:
+        val SM into union_vcf_SM
+        file("${SM}.union.vcf.gz") into union_vcf_set
+        file("${SM}.union.vcf.gz.csi") into union_vcf_set_indices
+
+
+    """
+        contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
+        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference} ${SM}.bam | bcftools call -v --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
+
+        # Output variant sites
+        bcftools concat \${order} -O v | vk geno het-polarization - | bcftools view -O z > ${SM}.vcf.gz
         bcftools index ${SM}.union.vcf.gz
         rm \${order}
     """
@@ -442,10 +479,6 @@ process concatenate_union_vcf {
 
     output:
         set file("merged.raw.vcf.gz"), file("merged.raw.vcf.gz.csi") into filtered_vcf
-        set file("v1941.vcf.gz"), file("v1941.vcf.gz.csi") into v1941
-        set file("v1931.vcf.gz"), file("v1931.vcf.gz.csi") into v1931
-        set file("v1926.vcf.gz"), file("v1926.vcf.gz.csi") into v1926
-        set file("v1511.vcf.gz"), file("v1511.vcf.gz.csi") into v1511
 
     """
         for i in ${merge_vcf.join(" ")}; do
@@ -453,54 +486,12 @@ process concatenate_union_vcf {
         done;
         chrom_set="";
         bcftools concat ${contig_raw_vcf.join(" ")} | \\
-        vk geno het-polarization - > merged.tmp.raw.vcf.gz
-
-        bcftools view -O z --samples ^JU1941,PD1941,JU1931,PD1931,JU1511,PD1511,JU1926,PD1926 merged.tmp.raw.vcf.gz > merged.raw.vcf.gz
+        vk geno het-polarization - > merged.raw.vcf.gz
         bcftools index merged.raw.vcf.gz
-        
-        # Split out the JU NILs
-        for i in 1941 1931 1926 1511; do
-            bcftools view -O z --samples PD\${i},JU\${i} merged.tmp.raw.vcf.gz > v\${i}.vcf.gz && bcftools index v\${i}.vcf.gz
-        done;
+
     """
 }
 
-JU_NIL = v1941.mix(v1931, v1926, v1511)
-
-process JU_NIL_hmm {
-
-    input:
-        set file("sample.vcf.gz"), file("sample.vcf.gz.csi") from JU_NIL
-    
-    output:
-        file("gt_hmm_out.tsv") into JU_hmm_out
-        file("gt_hmm_fill.tsv") into JU_hmm_fill
-
-    """
-        sample=`bcftools query --list-samples sample.vcf.gz | grep 'JU'`
-        pyenv local anaconda2-4.2.0
-        export QT_QPA_PLATFORM=offscreen
-        vk hmm --transition=1e-12 --alt=\${sample} sample.vcf.gz | grep -v 'chrom' > gt_hmm_out.tsv
-        vk hmm --transition=1e-12 --infill --endfill --alt=\${sample} sample.vcf.gz | grep -v 'chrom' > gt_hmm_fill.tsv
-    """
-}
-
-process combine_JU_hmm {
-
-    input:
-        val gt_out from JU_hmm_out.toSortedList()
-        val gt_fill from JU_hmm_fill.toSortedList()
-    
-    output:
-        file("gt_hmm_out_JU.tsv") into JU_gt_hmm_out
-        file("gt_hmm_fill_JU.tsv") into JU_gt_hmm_fill
-
-    """
-        cat ${gt_out.join(" ")} > gt_hmm_out_JU.tsv
-        cat ${gt_fill.join(" ")} > gt_hmm_fill_JU.tsv
-    """
-
-}
 
 filtered_vcf.into { filtered_vcf_stat; hmm_vcf; hmm_vcf_clean; hmm_vcf_out; vcf_tree }
 
@@ -527,7 +518,6 @@ process output_hmm {
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf
-        file("gt_hmm_fill_JU.tsv") from JU_gt_hmm_out
 
     output:
         file("gt_hmm.tsv")
@@ -535,8 +525,7 @@ process output_hmm {
     """
         pyenv local anaconda2-4.2.0
         export QT_QPA_PLATFORM=offscreen
-        vk hmm --alt=ALT NIL.filter.vcf.gz > gt_hmm.tmp.tsv
-        cat gt_hmm.tmp.tsv gt_hmm_fill_JU.tsv > gt_hmm.tsv
+        vk hmm --alt=ALT NIL.filter.vcf.gz > gt_hmm.tsv
     """
 
 }
@@ -547,7 +536,6 @@ process output_hmm_clean {
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf_clean
-        file("gt_hmm_fill_JU.tsv") from JU_gt_hmm_fill
 
     output:
         file("gt_hmm_fill.tsv") into gt_hmm_fill
@@ -555,8 +543,7 @@ process output_hmm_clean {
     """
         pyenv local anaconda2-4.2.0
         export QT_QPA_PLATFORM=offscreen
-        vk hmm --transition=1e-12 --infill --endfill --alt=ALT NIL.filter.vcf.gz > gt_hmm_fill.tmp.tsv
-        cat gt_hmm_fill.tmp.tsv gt_hmm_fill_JU.tsv > gt_hmm_fill.tsv
+        vk hmm --transition=1e-12 --infill --endfill --alt=ALT NIL.filter.vcf.gz > gt_hmm_fill.tsv
     """
 
 }
