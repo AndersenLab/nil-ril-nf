@@ -412,9 +412,8 @@ process call_jupd {
         set SM, file("${SM}.bam"), file("${SM}.bam.bai") from JU_PD_bams
 
     output:
-        val SM into union_vcf_SM
-        file("${SM}.union.vcf.gz") into union_vcf_set
-        file("${SM}.union.vcf.gz.csi") into union_vcf_set_indices
+        file("${SM}.vcf.gz")
+        file("${SM}.vcf.gz.csi") 
 
 
     """
@@ -424,7 +423,7 @@ process call_jupd {
 
         # Output variant sites
         bcftools concat \${order} -O v | vk geno het-polarization - | bcftools view -O z > ${SM}.vcf.gz
-        bcftools index ${SM}.union.vcf.gz
+        bcftools index ${SM}.vcf.gz
         rm \${order}
     """
 
