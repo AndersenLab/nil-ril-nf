@@ -485,7 +485,8 @@ process concatenate_union_vcf {
         done;
         chrom_set="";
         bcftools concat ${contig_raw_vcf.join(" ")} | \\
-        vk geno het-polarization - > merged.raw.vcf.gz
+        vk geno het-polarization - | \\
+        bcftools view -O z > merged.raw.vcf.gz
         bcftools index merged.raw.vcf.gz
 
     """
