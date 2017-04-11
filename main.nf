@@ -361,7 +361,7 @@ process SM_coverage_merge {
 */
 
 
-all_bams = merged_bams_union.filter { record -> record[0] !=~ /^(JU|PD).*/}
+all_bams = merged_bams_union.filter { record -> !(record[0] =~ /^(JU|PD).*/) }
 JU_PD_bams = merged_bams_union_JUPD.filter { record -> record[0] =~ /^(JU|PD).*/}
 
 site_set =  site_list.spread(site_list_index)
