@@ -15,6 +15,7 @@ tmpdir = config.tmpDir
 reference = config.reference
 cores = config.cores
 analysis_dir = config.analysis_dir
+align_dir = config.align_dir
 bam_dir = config.bam_dir
 call_variant_cpus = config.call_variant_cpus
 
@@ -38,6 +39,8 @@ fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
 process perform_alignment {
 
     echo true
+
+    storeDir align_dir
 
     cpus 4
 
@@ -223,6 +226,8 @@ merged_SM.into {
 
 process idx_stats_SM {
     
+    tag { SM }
+
     input:
         set SM, file("${SM}.bam"), file("${SM}.bam.bai") from bams_idxstats
     output:
@@ -356,12 +361,14 @@ process SM_coverage_merge {
 */
 
 
-all_bams = merged_bams_union.filter( ~/^(CB|ew|N2|).*/)
-JU_PD_bams = merged_bams_union_JUPD.filter( ~/^(JU|PD).*/)
+all_bams = merged_bams_union.filter { record -> record[0] !=~ /^(JU|PD).*/}
+JU_PD_bams = merged_bams_union_JUPD.filter { record -> record[0] =~ /^(JU|PD).*/}
 
-site_list =  site_list.spread(site_list_index)
-site_list.into { site_list_one; site_list_two }
-union_vcf_channel = all_bams.spread(site_list_one)
+site_set =  site_list.spread(site_list_index)
+all_bams.spread(site_set).into { union_vcf_channel; union_vcf_channel_print }
+
+union_vcf_channel_print.println()
+
 
 
 /*
@@ -384,10 +391,10 @@ process call_variants_union {
         file("${SM}.union.vcf.gz") into union_vcf_set
         file("${SM}.union.vcf.gz.csi") into union_vcf_set_indices
 
-
     """
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
-        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        sites=`readlink -f sitelist.tsv.gz`
+        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference} ${SM}.bam | bcftools call -T \$sites -r {} --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
 
         # Output variant sites
@@ -429,7 +436,6 @@ process call_jupd {
 
 }
 
-
 process generate_union_vcf_list {
 
     cpus 1 
@@ -442,7 +448,11 @@ process generate_union_vcf_list {
     output:
        file("union_vcfs.txt") into union_vcfs
 
+    script:
+        print vcf_set
+
     """
+        # run 3
         echo ${vcf_set.join(" ")} | tr ' ' '\\n' > union_vcfs.txt
     """
 }
