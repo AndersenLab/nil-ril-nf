@@ -394,7 +394,7 @@ process call_variants_union {
     """
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
         sites=`readlink -f sitelist.tsv.gz`
-        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference} ${SM}.bam | bcftools call -T \$sites -r {} --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference} ${SM}.bam | bcftools call -T \$sites --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
 
         # Output variant sites
