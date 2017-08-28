@@ -1,45 +1,43 @@
 #!/usr/bin/env nextflow
 /*
+    Set these parameters in nextflow.config
+*/
+date = new Date().format( 'yyyy-MM-dd' )
+analysis_dir = params.analysis_dir + "/NIL-" + date + "-" + params.fq_folder
+File f = new File(params.reference);
+reference = f.getAbsolutePath();
+/*
+    =======================
     Filtering configuration
+    =======================
 */
 site_list=Channel.fromPath("NIL_sites.tsv.gz")
 site_list_index=Channel.fromPath("NIL_sites.tsv.gz.tbi")
 hmm_plot_script=Channel.fromPath("plot_hmm.R")
 cross_object_script=file("generate_cross_object.R")
 
-/*
-    Set these parameters in nextflow.config
-*/
-date = new Date().format( 'yyyy-MM-dd' )
-tmpdir = config.tmpDir
-reference = config.reference
-cores = config.cores
-analysis_dir = config.analysis_dir
-align_dir = config.align_dir
-bam_dir = config.bam_dir
-call_variant_cpus = config.call_variant_cpus
-
 // Define contigs here!
-contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"]
+contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"];
 contigs = Channel.from(contig_list)
 
-println "Processing NIL Data"
+println "Processing NIL Sequence data located in ${params.fq_folder}"
 println "Using Reference: ${reference}" 
 
-strainFile = new File("fq_nil_sheet.tsv")
+
+strainFile = new File(params.fq_folder + "/fq_sheet.tsv")
 fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
 
 /*
+    ===============
     Fastq alignment
+    ===============
 */
 
 process perform_alignment {
 
     echo true
 
-    storeDir align_dir
-
-    cpus 4
+    cpus params.align_cores
 
     tag { ID }
 
@@ -50,10 +48,10 @@ process perform_alignment {
         set SM, file("${ID}.bam") into sample_aligned_bams
     
     """
-        bwa mem -t ${cores} -R '@RG\tID:${ID}\tLB:${LB}\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
-        sambamba view --nthreads=${cores} --sam-input --format=bam --with-header /dev/stdin | \\
-        sambamba sort --nthreads=${cores} --show-progress --tmpdir=${tmpdir} --out=${ID}.bam /dev/stdin
-        sambamba index --nthreads=${cores} ${ID}.bam
+        bwa mem -t ${params.align_cores} -R '@RG\tID:${ID}\tLB:${LB}\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
+        sambamba view --nthreads=${params.align_cores} --sam-input --format=bam --with-header /dev/stdin | \\
+        sambamba sort --nthreads=${params.align_cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
+        sambamba index --nthreads=${params.align_cores} ${ID}.bam
     """
 }
 
@@ -178,9 +176,9 @@ process merge_bam {
 
     echo true
 
-    storeDir bam_dir
+    storeDir analysis_dir + "/bam"
 
-    cpus cores
+    cpus params.align_cores
 
     tag { SM }
 
@@ -198,12 +196,12 @@ process merge_bam {
         ln -s ${bam[0]} ${SM}.merged.bam
         ln -s ${bam[0]}.bai ${SM}.merged.bam.bai
     else
-        sambamba merge --nthreads=${cores} --show-progress ${SM}.merged.bam ${bam.join(" ")}
-        sambamba index --nthreads=${cores} ${SM}.merged.bam
+        sambamba merge --nthreads=${params.align_cores} --show-progress ${SM}.merged.bam ${bam.join(" ")}
+        sambamba index --nthreads=${params.align_cores} ${SM}.merged.bam
     fi
 
     picard MarkDuplicates I=${SM}.merged.bam O=${SM}.bam M=${SM}.duplicates.txt VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=false
-    sambamba index --nthreads=${cores} ${SM}.bam
+    sambamba index --nthreads=${params.align_cores} ${SM}.bam
     """
 }
 
@@ -376,9 +374,11 @@ process call_variants_union {
 
     echo true
 
-    cpus call_variant_cpus
+    cpus params.variant_cores
 
     tag { SM }
+
+    stageInMode 'link'
 
     input:
         set SM, file("${SM}.bam"), file("${SM}.bam.bai"), file('sitelist.tsv.gz'), file('sitelist.tsv.gz.tbi') from union_vcf_channel
@@ -390,12 +390,15 @@ process call_variants_union {
 
     """
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
-        sites=`readlink -f sitelist.tsv.gz`
-        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference} ${SM}.bam | bcftools call -T \$sites --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        echo \${contigs} | \\
+        tr ' ' '\\n' | \\
+        xargs --verbose -I {} -P ${params.variant_cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${params.reference} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
 
         # Output variant sites
-        bcftools concat \${order} -O v | vk geno het-polarization - | bcftools view -O z > ${SM}.union.vcf.gz
+        bcftools concat \${order} -O v | \\
+        vk geno het-polarization - | \\
+        bcftools view -O z > ${SM}.union.vcf.gz
         bcftools index ${SM}.union.vcf.gz
         rm \${order}
     """
@@ -406,7 +409,7 @@ process call_jupd {
 
     echo true
 
-    cpus call_variant_cpus
+    cpus params.variant_cores
 
     tag { SM }
 
@@ -422,7 +425,7 @@ process call_jupd {
 
     """
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
-        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference} ${SM}.bam | bcftools call -v --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.variant_cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${params.reference} ${SM}.bam | bcftools call -v --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
 
         # Output variant sites
@@ -530,8 +533,12 @@ process output_hmm {
         file("gt_hmm.tsv")
 
     """
+        {
         pyenv local anaconda2-4.2.0
         export QT_QPA_PLATFORM=offscreen
+        } || { 
+            echo 'is yahmm installed?' 
+        }
         vk hmm --alt=ALT NIL.filter.vcf.gz > gt_hmm.tsv
     """
 
@@ -548,8 +555,12 @@ process output_hmm_clean {
         file("gt_hmm_fill.tsv") into gt_hmm_fill
 
     """
+        {
         pyenv local anaconda2-4.2.0
         export QT_QPA_PLATFORM=offscreen
+        } || { 
+            echo 'is yahmm installed?' 
+        }
         vk hmm --transition=1e-12 --infill --endfill --alt=ALT NIL.filter.vcf.gz > gt_hmm_fill.tsv
     """
 
@@ -567,8 +578,12 @@ process output_hmm_vcf {
         set file("NIL.hmm.vcf.gz"), file("NIL.hmm.vcf.gz.csi") into gt_hmm
 
     """
+        {
         pyenv local anaconda2-4.2.0
         export QT_QPA_PLATFORM=offscreen
+        } || { 
+            echo 'is yahmm installed?' 
+        }
         vk hmm --transition=1e-12 --vcf-out --all-sites --alt=ALT NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
         bcftools index NIL.hmm.vcf.gz
     """

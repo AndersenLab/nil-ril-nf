@@ -6,10 +6,16 @@ Align, call variants, and generate datasets for NIL sequence data
 
 ```
 # cd to directory of fastqs
-nextflow run main.nf -resume
+nextflow run main.nf -resume --fq_folder data/test_fq<fq_directory>
 ```
 
-The file has the following format:
+The __NIL__ workflow works a little differently than the RIL and WI workflows. NIL sequence sets generally only need to be run once, and the resultant datasets are not mixed together as they are with wild isolate and RIAIL sequence data.
+
+In order to process NIL data, you need to move the sequence data to a folder and create a `fq_sheet.tsv`. This file defines the fastqs that should be processed. __Note__: Unlike other workflows the fastq path provided is *relative* and not *absolute* for each fastq. This is because the NIL workflow processes fastqs located within a folder rather.
+
+## fq_sheet.tsv
+
+The `fq_sheet.tsv` defines the fastqs to be processed as part of the NIL workflow. It comes in the following format:
 
 | strain   | fastq_pair_id   | library   | fastq-1-path   | fastq-2-path   |
 |:-------|:-----------------------|:------------------|:-------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------|
@@ -19,8 +25,22 @@ The file has the following format:
 | QX99   | QX99_CGAGGCTGTGGCAAT   | CGAGGCTGTGGCAAT   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_CGAGGCTG-TGGCAAT_L003_R1_001.fq.gz   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_CGAGGCTG-TGGCAAT_L003_R2_001.fq.gz   |
 | QX99   | QX99_CGAGGCTGTGGCAAT   | CGAGGCTGTGGCAAT   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_CGAGGCTG-TGGCAAT_L004_R1_001.fq.gz   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_CGAGGCTG-TGGCAAT_L004_R2_001.fq.gz   |
 
-* Sequence data is very low coverage by design. No pre-processing takes place because variants will be called at specific positions and low quality/adapter contamination are unlikely to be problematic.
-* You may wish to perform adapter trimming if contamination is bad. However, most of these reads will be soft-clipped during alignment.
+This file can be generated using a script that *looks* like this, but not that you may have to modify it depending on the naming convention used for the provided fastqs.
+
+```
+ls -1 *.gz | grep 'R1' | awk -v pwd=`pwd` '{
+                            split($0, a, "_");
+                            SM = a[1]; 
+                            gsub("-","",a[2]); // LB
+                            ID = a[1] "_" a[2];
+                            fq2 = $1; gsub("_R1", "_R2", fq2);
+                            print SM "\t" ID "\t" a[2] "\t" pwd "/" $1 "\t" pwd "/" fq2;
+                            }' > fq_sheet.tsv
+```
+
+## Important Notes
+
+* NIL sequencing uses low coverage by design. No pre-processing (ie trimming) takes place because variants will be called at specific positions and low quality/adapter contamination are unlikely to be problematic.
 
 ## Generate CB4856 Sitelist
 
