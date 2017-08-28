@@ -26,9 +26,6 @@ contigs = Channel.from(contig_list)
 println "Processing NIL Data"
 println "Using Reference: ${reference}" 
 
-// Construct strain and isotype lists
-import groovy.json.JsonSlurper
-
 strainFile = new File("fq_nil_sheet.tsv")
 fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
 

@@ -1,6 +1,6 @@
-# Kammenga-nils-nf
+# nils-nf
 
-Align, call variants, and generate datasets for RIAIL sequence data
+Align, call variants, and generate datasets for NIL sequence data
 
 ## Usage
 
@@ -8,8 +8,6 @@ Align, call variants, and generate datasets for RIAIL sequence data
 # cd to directory of fastqs
 nextflow run main.nf -resume
 ```
-
-__`fq_ril_sheet.tsv`__ is a file that details all of the sequence data. It is generated using the script `scripts/construct_fq_sheet.sh`. RIL fastqs are stored in `/projects/b1059/data/fastq/RIL/dna/processed/`. The script `scripts/construct_fq_sheet.sh` uses the directory structure and filenames to construct the `fq_ril_sheet.tsv` file.
 
 The file has the following format:
 
@@ -20,7 +18,6 @@ The file has the following format:
 | QX99   | QX99_AGGCAGAAGCTAATC   | AGGCAGAAGCTAATC   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_AGGCAGAA-GCTAATC_L006_R1_001.fq.gz   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_AGGCAGAA-GCTAATC_L006_R2_001.fq.gz   |
 | QX99   | QX99_CGAGGCTGTGGCAAT   | CGAGGCTGTGGCAAT   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_CGAGGCTG-TGGCAAT_L003_R1_001.fq.gz   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_CGAGGCTG-TGGCAAT_L003_R2_001.fq.gz   |
 | QX99   | QX99_CGAGGCTGTGGCAAT   | CGAGGCTGTGGCAAT   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_CGAGGCTG-TGGCAAT_L004_R1_001.fq.gz   | /projects/b1059/data/fastq/RIL/dna/processed/151009_D00422_0262_BC7NJ0ANXX-ECA/QX99_CGAGGCTG-TGGCAAT_L004_R2_001.fq.gz   |
-
 
 * Sequence data is very low coverage by design. No pre-processing takes place because variants will be called at specific positions and low quality/adapter contamination are unlikely to be problematic.
 * You may wish to perform adapter trimming if contamination is bad. However, most of these reads will be soft-clipped during alignment.
