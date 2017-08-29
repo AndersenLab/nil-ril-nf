@@ -3,7 +3,7 @@
     Set these parameters in nextflow.config
 */
 date = new Date().format( 'yyyy-MM-dd' )
-analysis_dir = params.analysis_dir + "/NIL-" + date + "-" + params.fq_folder
+analysis_dir = params.analysis_dir
 File f = new File(params.reference);
 reference = f.getAbsolutePath();
 /*
@@ -355,12 +355,8 @@ process SM_coverage_merge {
     Call variants using the merged site list
 */
 
-
-all_bams = merged_bams_union.filter { record -> !(record[0] =~ /^(JU|PD).*/) }
-JU_PD_bams = merged_bams_union_JUPD.filter { record -> record[0] =~ /^(JU|PD).*/}
-
 site_set =  site_list.spread(site_list_index)
-all_bams.spread(site_set).into { union_vcf_channel; union_vcf_channel_print }
+merged_bams_union.spread(site_set).into { union_vcf_channel; union_vcf_channel_print }
 
 union_vcf_channel_print.println()
 
@@ -378,7 +374,7 @@ process call_variants_union {
 
     tag { SM }
 
-    stageInMode 'link'
+    stageInMode 'copy'
 
     input:
         set SM, file("${SM}.bam"), file("${SM}.bam.bai"), file('sitelist.tsv.gz'), file('sitelist.tsv.gz.tbi') from union_vcf_channel
@@ -389,10 +385,11 @@ process call_variants_union {
         file("${SM}.union.vcf.gz.csi") into union_vcf_set_indices
 
     """
+        # Re-index the sitelist...because
+        tabix -s 1 -b 2 -e 2 -f sitelist.tsv.gz
+        
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
-        echo \${contigs} | \\
-        tr ' ' '\\n' | \\
-        xargs --verbose -I {} -P ${params.variant_cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${params.reference} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.variant_cores} sh -c "samtools mpileup --redo-BAQ --region {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${params.reference} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
 
         # Output variant sites
@@ -400,37 +397,6 @@ process call_variants_union {
         vk geno het-polarization - | \\
         bcftools view -O z > ${SM}.union.vcf.gz
         bcftools index ${SM}.union.vcf.gz
-        rm \${order}
-    """
-
-}
-
-process call_jupd {
-
-    echo true
-
-    cpus params.variant_cores
-
-    tag { SM }
-
-    publishDir analysis_dir + "/JUPD_vcf", mode: 'copy'
-
-    input:
-        set SM, file("${SM}.bam"), file("${SM}.bam.bai") from JU_PD_bams
-
-    output:
-        file("${SM}.vcf.gz")
-        file("${SM}.vcf.gz.csi") 
-
-
-    """
-        contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
-        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.variant_cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${params.reference} ${SM}.bam | bcftools call -v --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
-        order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
-
-        # Output variant sites
-        bcftools concat \${order} -O v | vk geno het-polarization - | bcftools view -O z > ${SM}.vcf.gz
-        bcftools index ${SM}.vcf.gz
         rm \${order}
     """
 
@@ -467,7 +433,6 @@ process merge_union_vcf_chromosome {
         set file(union_vcfs:"union_vcfs.txt"), val(chrom) from union_vcfs_in
 
     output:
-        val(chrom) into contigs_list_in
         file("${chrom}.merged.raw.vcf.gz") into raw_vcf
 
     """
