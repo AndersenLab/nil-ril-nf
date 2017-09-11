@@ -29,6 +29,10 @@ if (params.analysis_name) {
     analysis_dir = params.analysis_prefix + "/NIL-${date}}"
 }
 
+if (params.test) {
+    println "Using debug/test mode"
+}
+
 // Define contigs here!
 contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"];
 contigs = Channel.from(contig_list)
