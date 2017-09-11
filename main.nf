@@ -3,7 +3,6 @@
     Set these parameters in nextflow.config
 */
 date = new Date().format( 'yyyy-MM-dd' )
-analysis_dir = params.analysis_dir
 File f = new File(params.reference);
 reference = f.getAbsolutePath();
 /*
@@ -11,10 +10,18 @@ reference = f.getAbsolutePath();
     Filtering configuration
     =======================
 */
-site_list=Channel.fromPath("NIL_sites.tsv.gz")
-site_list_index=Channel.fromPath("NIL_sites.tsv.gz.tbi")
+alt_gt="${params.alt_gt?:'CB4856'}"
+alt_sitelist = "alt_gt/${alt_gt}.20160408.sitelist.tsv.gz"
+site_list=Channel.fromPath(alt_sitelist)
+site_list_index=Channel.fromPath(alt_sitelist + '.tbi')
 hmm_plot_script=Channel.fromPath("plot_hmm.R")
 cross_object_script=file("generate_cross_object.R")
+
+/* 
+    Analysis Dir 
+*/
+analysis_dir = params.analysis_prefix + "/NIL-" + params.analysis_name
+
 
 // Define contigs here!
 contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"];
@@ -22,7 +29,8 @@ contigs = Channel.from(contig_list)
 
 println "Processing NIL Sequence data located in ${params.fq_folder}"
 println "Using Reference: ${reference}" 
-
+println "Using Alt GT: ${alt_gt}"
+println "Outputting results to ${analysis_dir}"
 
 strainFile = new File(params.fq_folder + "/fq_sheet.tsv")
 fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
@@ -48,7 +56,7 @@ process perform_alignment {
         set SM, file("${ID}.bam") into sample_aligned_bams
     
     """
-        bwa mem -t ${params.align_cores} -R '@RG\tID:${ID}\tLB:${LB}\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
+        bwa mem -t ${params.align_cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
         sambamba view --nthreads=${params.align_cores} --sam-input --format=bam --with-header /dev/stdin | \\
         sambamba sort --nthreads=${params.align_cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
         sambamba index --nthreads=${params.align_cores} ${ID}.bam
@@ -206,12 +214,11 @@ process merge_bam {
 }
 
 merged_SM.into { 
-                bams_stats;
-                bams_idxstats;
-                merged_bams_for_coverage;
-                merged_bams_union;
-                merged_bams_union_JUPD;
-                }
+    bams_stats;
+    bams_idxstats;
+    merged_bams_for_coverage;
+    merged_bams_union;
+}
 
 
 
@@ -504,7 +511,7 @@ process output_hmm {
         } || { 
             echo 'is yahmm installed?' 
         }
-        vk hmm --alt=ALT NIL.filter.vcf.gz > gt_hmm.tsv
+        vk hmm --alt=${alt_gt} NIL.filter.vcf.gz > gt_hmm.tsv
     """
 
 }
@@ -526,7 +533,7 @@ process output_hmm_clean {
         } || { 
             echo 'is yahmm installed?' 
         }
-        vk hmm --transition=1e-12 --infill --endfill --alt=ALT NIL.filter.vcf.gz > gt_hmm_fill.tsv
+        vk hmm --transition=1e-12 --infill --endfill --alt=${alt_gt} NIL.filter.vcf.gz > gt_hmm_fill.tsv
     """
 
 }
@@ -549,7 +556,7 @@ process output_hmm_vcf {
         } || { 
             echo 'is yahmm installed?' 
         }
-        vk hmm --transition=1e-12 --vcf-out --all-sites --alt=ALT NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
+        vk hmm --transition=1e-12 --vcf-out --all-sites --alt=${alt_gt} NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
         bcftools index NIL.hmm.vcf.gz
     """
 
