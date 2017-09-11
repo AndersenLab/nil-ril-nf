@@ -26,7 +26,7 @@ cross_object_script=file("generate_cross_object.R")
 if (params.analysis_name) {
     analysis_dir = params.analysis_prefix + "/NIL-${params.analysis_name}"
 } else {
-    analysis_dir = params.analysis_prefix + "/NIL-${date}}"
+    analysis_dir = params.analysis_prefix + "/NIL-${date}"
 }
 
 if (params.test) {
