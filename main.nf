@@ -17,6 +17,7 @@ site_list=Channel.fromPath(alt_sitelist)
 site_list_index=Channel.fromPath(alt_sitelist + '.tbi')
 hmm_plot_script=Channel.fromPath("${workflow.projectDir}/plot_hmm.R")
 cross_object_script=file("${workflow.projectDir}/generate_cross_object.R")
+qc_plots_script=file("${workflow.projectDir}/qc_plots.R")
 
 /* 
     ============
@@ -611,7 +612,7 @@ process generate_issue_plots {
         file("fq_coverage.tsv") from fq_coverage_plot
         file("SM_coverage.tsv") from SM_coverage_plot
         file("bam_duplicates.tsv") from bam_duplicates_plot
-        file("generate_plots.R") from Channel.fromPath("generate_plots.R")
+        file("qc_plots.R") from qc_plots_script
 
     output:
         file("coverage_comparison.png")
@@ -622,7 +623,7 @@ process generate_issue_plots {
         file("duplicates.svg")
 
     """
-        Rscript --vanilla generate_plots.R
+        Rscript --vanilla qc_plots.R
     """
 }
 
