@@ -67,8 +67,8 @@ process perform_alignment {
     script:
     if(test)
         """
-            zcat ${fq1} | head -n 50000 | gzip > fq1.fq.gz
-            zcat ${fq2} | head -n 50000 | gzip > fq2.fq.gz
+            zcat ${fq1} | head -n 5000 | gzip > fq1.fq.gz
+            zcat ${fq2} | head -n 5000 | gzip > fq2.fq.gz
             bwa mem -t ${params.align_cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
             sambamba view --nthreads=${params.align_cores} --sam-input --format=bam --with-header /dev/stdin | \\
             sambamba sort --nthreads=${params.align_cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
