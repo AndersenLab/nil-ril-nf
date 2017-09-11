@@ -10,6 +10,7 @@ reference = f.getAbsolutePath();
     Filtering configuration
     =======================
 */
+test="${params.test?:false}"
 alt_gt="${params.alt_gt?:'CB4856'}"
 alt_sitelist = "alt_gt/${alt_gt}.20160408.sitelist.tsv.gz"
 site_list=Channel.fromPath(alt_sitelist)
@@ -18,7 +19,9 @@ hmm_plot_script=Channel.fromPath("plot_hmm.R")
 cross_object_script=file("generate_cross_object.R")
 
 /* 
-    Analysis Dir 
+    ============
+    Analysis Dir
+    ============
 */
 analysis_dir = params.analysis_prefix + "/NIL-" + params.analysis_name
 
@@ -55,12 +58,22 @@ process perform_alignment {
         set SM, ID, LB, file("${ID}.bam"), file("${ID}.bam.bai") into aligned_bams
         set SM, file("${ID}.bam") into sample_aligned_bams
     
-    """
-        bwa mem -t ${params.align_cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
-        sambamba view --nthreads=${params.align_cores} --sam-input --format=bam --with-header /dev/stdin | \\
-        sambamba sort --nthreads=${params.align_cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
-        sambamba index --nthreads=${params.align_cores} ${ID}.bam
-    """
+    if(params.debug == True)
+        """
+            zcat ${fq1} | head -n 50000 | gzip > fq1.fq.gz
+            zcat ${fq2} | head -n 50000 | gzip > fq2.fq.gz
+            bwa mem -t ${params.align_cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
+            sambamba view --nthreads=${params.align_cores} --sam-input --format=bam --with-header /dev/stdin | \\
+            sambamba sort --nthreads=${params.align_cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
+            sambamba index --nthreads=${params.align_cores} ${ID}.bam
+        """ 
+    else
+        """
+            bwa mem -t ${params.align_cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
+            sambamba view --nthreads=${params.align_cores} --sam-input --format=bam --with-header /dev/stdin | \\
+            sambamba sort --nthreads=${params.align_cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
+            sambamba index --nthreads=${params.align_cores} ${ID}.bam
+        """
 }
 
 aligned_bams.into { 
