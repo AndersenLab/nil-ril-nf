@@ -12,11 +12,11 @@ reference = f.getAbsolutePath();
 */
 test="${params.test?:false}"
 alt_gt="${params.alt_gt?:'CB4856'}"
-alt_sitelist = "alt_gt/${alt_gt}.20160408.sitelist.tsv.gz"
+alt_sitelist = "${workflow.projectDir}/alt_gt/${alt_gt}.20160408.sitelist.tsv.gz"
 site_list=Channel.fromPath(alt_sitelist)
 site_list_index=Channel.fromPath(alt_sitelist + '.tbi')
-hmm_plot_script=Channel.fromPath("plot_hmm.R")
-cross_object_script=file("generate_cross_object.R")
+hmm_plot_script=Channel.fromPath("${workflow.projectDir}/plot_hmm.R")
+cross_object_script=file("${workflow.projectDir}/generate_cross_object.R")
 
 /* 
     ============
