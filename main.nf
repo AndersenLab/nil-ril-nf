@@ -67,6 +67,7 @@ process perform_alignment {
 
     script:
     if(test == true)
+        println "Using truncated fqs [test]"
         """
             zcat ${fq1} | head -n 50000 | gzip > fq1.fq.gz
             zcat ${fq2} | head -n 50000 | gzip > fq2.fq.gz
