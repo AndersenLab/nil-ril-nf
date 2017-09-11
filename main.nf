@@ -44,9 +44,6 @@ println "Outputting results to ${analysis_dir}"
 
 strainFile = new File(params.fq_folder + "/fq_sheet.tsv")
 fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
-println(test == true)
-println(test == false)
-println(test)
 /*
     ===============
     Fastq alignment
@@ -68,7 +65,7 @@ process perform_alignment {
         set SM, file("${ID}.bam") into sample_aligned_bams
 
     script:
-    if(test == true)
+    if(test)
         """
             zcat ${fq1} | head -n 50000 | gzip > fq1.fq.gz
             zcat ${fq2} | head -n 50000 | gzip > fq2.fq.gz
