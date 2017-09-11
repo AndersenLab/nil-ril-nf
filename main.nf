@@ -23,7 +23,11 @@ cross_object_script=file("generate_cross_object.R")
     Analysis Dir
     ============
 */
-analysis_dir = params.analysis_prefix + "/NIL-${params.analysis_name?:${date}}"
+if (params.analysis_name) {
+    analysis_dir = params.analysis_prefix + "/NIL-${params.analysis_name}"
+} else {
+    analysis_dir = params.analysis_prefix + "/NIL-${date}}"
+}
 
 // Define contigs here!
 contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"];
