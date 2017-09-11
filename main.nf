@@ -58,7 +58,7 @@ process perform_alignment {
         set SM, ID, LB, file("${ID}.bam"), file("${ID}.bam.bai") into aligned_bams
         set SM, file("${ID}.bam") into sample_aligned_bams
     
-    if(params.debug == True)
+    if(test == true)
         """
             zcat ${fq1} | head -n 50000 | gzip > fq1.fq.gz
             zcat ${fq2} | head -n 50000 | gzip > fq2.fq.gz
