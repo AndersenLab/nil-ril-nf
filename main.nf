@@ -44,7 +44,7 @@ println "Outputting results to ${analysis_dir}"
 
 strainFile = new File(params.fq_folder + "/fq_sheet.tsv")
 fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
-println(test == true)
+println(test === true)
 println(test)
 /*
     ===============
