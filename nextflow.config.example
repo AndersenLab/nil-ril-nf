@@ -1,0 +1,15 @@
+
+params {
+    analysis_dir = "analysis"
+    fq_folder = "fq"
+    genome = "WS245"
+    reference = "/Users/dancook/Documents/git/VCF-kit/nil-nf/reference/${genome}.fa.gz"
+
+    tmpdir = "/tmp"
+
+    align_cores = 4
+    variant_cores = 4
+
+    date = new Date().format( 'yyyyMMdd' )
+    analysis_prefix = "analysis"
+}
