@@ -6,7 +6,7 @@
  */
 
 date = new Date().format( 'yyyy-MM-dd' )
-params.debug = 'false'
+params.debug = false
 params.cores = 4
 params.A = 'N2'
 params.B = 'CB4856'
@@ -91,8 +91,12 @@ if (!fq_file.exists()) {
     System.exit(1)
 }
 
-if (params.debug == 'true') {
-    println "Using debug mode"
+if (params.debug == true) {
+    println """
+
+        ***Using debug mode***
+
+    """
 }
 
 // Define contigs here!
@@ -111,7 +115,6 @@ fqs = Channel.from(fq_file.collect { it.tokenize( '\t' ) })
 */
 
 process generate_sitelist {
-
 
     publishDir params.analysis_dir + "/sitelist", mode: 'copy'
     
@@ -145,8 +148,6 @@ process generate_sitelist {
 
 process perform_alignment {
 
-    echo true
-
     cpus params.cores
 
     tag { ID }
@@ -158,7 +159,8 @@ process perform_alignment {
         set SM, file("${ID}.bam") into sample_aligned_bams
 
     script:
-    if(params.debug == 'true')
+
+    if( params.debug == true )
         """
             zcat ${fq1} | head -n 5000 | gzip > fq1.fq.gz
             zcat ${fq2} | head -n 5000 | gzip > fq2.fq.gz
