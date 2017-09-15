@@ -1,42 +1,94 @@
 #!/usr/bin/env nextflow
-/*
-    Set these parameters in nextflow.config
-*/
-
 /* 
  * Authors: 
  * - Daniel Cook <danielecook@gmail.com>
+ *  
  */
 
 date = new Date().format( 'yyyy-MM-dd' )
-
-/*
-    =============
-    Configuration
-    =============
-*/
-debug="${params.debug?:'false'}"
-
-// Define parents
-A="WN2001"
-B="${params.B?:'CB4856'}"
-
-// Analysis Directory
-analysis_dir = params.analysis_prefix + "/NIL-${A}-${B}-${params.analysis_name?:date}"
-
-// Reference
-File f = new File(params.reference);
-reference = f.getAbsolutePath();
+params.debug = 'false'
+params.cores = 4
+params.A = 'N2'
+params.B = 'CB4856'
+params.cA = "#0080FF"
+params.cB = "#FF8000"
+params.analysis_folder = "results"
+params.analysis_dir = params.analysis_folder + "/NIL-${params.A}-${params.B}-${date}"
+params.vcf = "(required)" // default to avoid warning.
+params.reference = "(required)"
+params.fqs = "(required)"
+params.tmpdir = "tmp/"
 
 // Define VCF
 parental_vcf=file("${params.vcf}")
-hmm_plot_script=Channel.fromPath("${workflow.projectDir}/plot_hmm.R")
-cross_object_script=file("${workflow.projectDir}/generate_cross_object.R")
-qc_plots_script=file("${workflow.projectDir}/qc_plots.R")
+reference_handle = file("${params.reference}")
+File fq_file = new File("${params.fqs}")
+
+param_summary = '''
+
+    ███╗   ██╗██╗██╗      ███╗   ██╗███████╗
+    ████╗  ██║██║██║      ████╗  ██║██╔════╝
+    ██╔██╗ ██║██║██║█████╗██╔██╗ ██║█████╗  
+    ██║╚██╗██║██║██║╚════╝██║╚██╗██║██╔══╝  
+    ██║ ╚████║██║███████╗ ██║ ╚████║██║     
+    ╚═╝  ╚═══╝╚═╝╚══════╝ ╚═╝  ╚═══╝╚═╝        
+
+''' + """
+    parameters           description                    Set/Default
+    ==========           ===========                    =======
+    
+    --debug              Set to 'true' to test          ${params.debug}
+    --cores              Number of cores                ${params.cores}
+    --A                  Parent A                       ${params.A}
+    --B                  Parent B                       ${params.B}
+    --cA                 Parent A color (for plots)     ${params.cA}
+    --cB                 Parent B color (for plots)     ${params.cB}
+    --analysis_folder    Folder for results             ${params.analysis_folder}
+    --analysis_dir       Sub-Folder                     ${params.analysis_dir}
+    --fqs                fastq file (see help)          ${params.fqs}
+    --reference          Reference Genome               ${params.reference}
+    --vcf                VCF to fetch parents from      ${params.vcf}
+    --tmpdir             A temporary directory          ${params.tmpdir}
+"""
+
+println param_summary
+
+if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs == "(required)") {
+
+    println """
+    The Set/Default column shows what the value is currently set to
+    or would be set to if it is not specified (it's default).
+
+"""
+    System.exit(0)
+} 
 
 if (!parental_vcf.exists()) {
-    println("You must define a parental vcf with --vcf")
-    System.exit(0)
+    println """
+
+    Error: VCF Does not exist
+
+    """
+    System.exit(1)
+}
+
+if (!reference_handle.exists()) {
+    println """
+
+    Error: Reference does not exist
+
+    """
+    System.exit(1)
+}
+
+
+if (!fq_file.exists()) {
+    println """
+
+    Error: fastq sheet does not exist
+
+    """
+    System.exit(1)
 }
 
 if (params.debug == 'true') {
@@ -47,13 +99,10 @@ if (params.debug == 'true') {
 contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"];
 contigs = Channel.from(contig_list)
 
-println "Processing NIL Sequence data located in ${params.fq_folder}"
-println "Using Reference: ${reference}" 
-println "Using Parents GT: ${A} - ${B}"
-println "Outputting results to ${analysis_dir}"
+fq_file_prefix = fq_file.getParentFile().getAbsolutePath();
+fqs = Channel.from(fq_file.collect { it.tokenize( '\t' ) })
+             .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${fq_file_prefix}/${fq1}"), file("${fq_file_prefix}/${fq2}")] }
 
-strainFile = new File(params.fq_folder + "/fq_sheet.tsv")
-fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
 
 /*
     ======================
@@ -64,26 +113,26 @@ fqs = Channel.from(strainFile.collect { it.tokenize( '\t' ) })
 process generate_sitelist {
 
 
-    publishDir analysis_dir + "/sitelist", mode: 'copy'
+    publishDir params.analysis_dir + "/sitelist", mode: 'copy'
     
     input:
         file("parental.vcf.gz") from parental_vcf
 
     output:
-        set file("${A}.${B}.sitelist.tsv.gz"), file("${A}.${B}.sitelist.tsv.gz.tbi") into site_list
-        set file("${A}.${B}.parental.vcf.gz"), file("${A}.${B}.parental.vcf.gz.csi") into parental_vcf_only
+        set file("${params.A}.${params.B}.sitelist.tsv.gz"), file("${params.A}.${params.B}.sitelist.tsv.gz.tbi") into site_list
+        set file("${params.A}.${params.B}.parental.vcf.gz"), file("${params.A}.${params.B}.parental.vcf.gz.csi") into parental_vcf_only
 
     """
         # Generate parental VCF
-        bcftools view --samples ${A},${B} -m 2 -M 2 ${parental_vcf} | \
+        bcftools view --samples ${params.A},${params.B} -m 2 -M 2 ${parental_vcf} | \
         vk filter ALT --min=1 - | \
         vk filter REF --min=1 - | \
-        bcftools filter -O z --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' > ${A}.${B}.parental.vcf.gz
-        bcftools index ${A}.${B}.parental.vcf.gz
+        bcftools filter -O z --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' > ${params.A}.${params.B}.parental.vcf.gz
+        bcftools index ${params.A}.${params.B}.parental.vcf.gz
 
         # Generate Sitelist
-        bcftools query --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' -f '%CHROM\t%POS\t%REF,%ALT\n' ${A}.${B}.parental.vcf.gz| \
-        bgzip -c > ${A}.${B}.sitelist.tsv.gz && tabix -s 1 -b 2 -e 2 ${A}.${B}.sitelist.tsv.gz
+        bcftools query --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' -f '%CHROM\t%POS\t%REF,%ALT\n' ${params.A}.${params.B}.parental.vcf.gz| \
+        bgzip -c > ${params.A}.${params.B}.sitelist.tsv.gz && tabix -s 1 -b 2 -e 2 ${params.A}.${params.B}.sitelist.tsv.gz
     """   
 }
 
@@ -98,7 +147,7 @@ process perform_alignment {
 
     echo true
 
-    cpus params.align_cores
+    cpus params.cores
 
     tag { ID }
 
@@ -109,14 +158,14 @@ process perform_alignment {
         set SM, file("${ID}.bam") into sample_aligned_bams
 
     script:
-    if(debug == 'true')
+    if(params.debug == 'true')
         """
             zcat ${fq1} | head -n 5000 | gzip > fq1.fq.gz
             zcat ${fq2} | head -n 5000 | gzip > fq2.fq.gz
-            bwa mem -t ${params.align_cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference} fq1.fq.gz fq2.fq.gz | \\
-            sambamba view --nthreads=${params.align_cores} --sam-input --format=bam --with-header /dev/stdin | \\
-            sambamba sort --nthreads=${params.align_cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
-            sambamba index --nthreads=${params.align_cores} ${ID}.bam
+            bwa mem -t ${params.cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${params.reference} fq1.fq.gz fq2.fq.gz | \\
+            sambamba view --nthreads=${params.cores} --sam-input --format=bam --with-header /dev/stdin | \\
+            sambamba sort --nthreads=${params.cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
+            sambamba index --nthreads=${params.cores} ${ID}.bam
 
             if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
                 exit 1;
@@ -124,10 +173,10 @@ process perform_alignment {
         """ 
     else
         """
-            bwa mem -t ${params.align_cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference} ${fq1} ${fq2} | \\
-            sambamba view --nthreads=${params.align_cores} --sam-input --format=bam --with-header /dev/stdin | \\
-            sambamba sort --nthreads=${params.align_cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
-            sambamba index --nthreads=${params.align_cores} ${ID}.bam
+            bwa mem -t ${params.cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${params.reference} ${fq1} ${fq2} | \\
+            sambamba view --nthreads=${params.cores} --sam-input --format=bam --with-header /dev/stdin | \\
+            sambamba sort --nthreads=${params.cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
+            sambamba index --nthreads=${params.cores} ${ID}.bam
 
             if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
                 exit 1;
@@ -161,7 +210,7 @@ process fq_idx_stats {
 
 process fq_combine_idx_stats {
 
-    publishDir analysis_dir + "/fq", mode: 'copy'
+    publishDir params.analysis_dir + "/fq", mode: 'copy'
 
     input:
         val bam_idxstats from fq_idxstats_set.toSortedList()
@@ -197,7 +246,7 @@ process fq_bam_stats {
 
 process combine_bam_stats {
 
-    publishDir analysis_dir + "/fq", mode: 'copy'
+    publishDir params.analysis_dir + "/fq", mode: 'copy'
 
     input:
         val stat_files from bam_stat_files.toSortedList()
@@ -231,7 +280,7 @@ process fq_coverage {
 
 process fq_coverage_merge {
 
-    publishDir analysis_dir + "/fq", mode: 'copy'
+    publishDir params.analysis_dir + "/fq", mode: 'copy'
 
     input:
         val fq_set from fq_coverage.toSortedList()
@@ -256,9 +305,9 @@ process merge_bam {
 
     echo true
 
-    storeDir analysis_dir + "/bam"
+    storeDir params.analysis_dir + "/bam"
 
-    cpus params.align_cores
+    cpus params.cores
 
     tag { SM }
 
@@ -276,12 +325,12 @@ process merge_bam {
         ln -s ${bam[0]} ${SM}.merged.bam
         ln -s ${bam[0]}.bai ${SM}.merged.bam.bai
     else
-        sambamba merge --nthreads=${params.align_cores} --show-progress ${SM}.merged.bam ${bam.join(" ")}
-        sambamba index --nthreads=${params.align_cores} ${SM}.merged.bam
+        sambamba merge --nthreads=${params.cores} --show-progress ${SM}.merged.bam ${bam.join(" ")}
+        sambamba index --nthreads=${params.cores} ${SM}.merged.bam
     fi
 
     picard MarkDuplicates I=${SM}.merged.bam O=${SM}.bam M=${SM}.duplicates.txt VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=false
-    sambamba index --nthreads=${params.align_cores} ${SM}.bam
+    sambamba index --nthreads=${params.cores} ${SM}.bam
     """
 }
 
@@ -314,7 +363,7 @@ process idx_stats_SM {
 
 process combine_idx_stats {
 
-    publishDir analysis_dir +"/SM", mode: 'copy'
+    publishDir params.analysis_dir +"/SM", mode: 'copy'
 
     input:
         val bam_idxstats from bam_idxstats_set.toSortedList()
@@ -351,7 +400,7 @@ process SM_bam_stats {
 
 process combine_SM_bam_stats {
 
-    publishDir analysis_dir + "/SM", mode: 'copy'
+    publishDir params.analysis_dir + "/SM", mode: 'copy'
 
     input:
         val stat_files from SM_bam_stat_files.toSortedList()
@@ -369,7 +418,7 @@ process combine_SM_bam_stats {
 
 process format_duplicates {
 
-    publishDir analysis_dir + "/duplicates", mode: 'copy'
+    publishDir params.analysis_dir + "/duplicates", mode: 'copy'
 
     input:
         val duplicates_set from duplicates_file.toSortedList()
@@ -408,7 +457,7 @@ process SM_coverage {
 
 process SM_coverage_merge {
 
-    publishDir analysis_dir + "/SM", mode: 'copy'
+    publishDir params.analysis_dir + "/SM", mode: 'copy'
 
 
     input:
@@ -448,7 +497,7 @@ process call_variants_union {
 
     echo true
 
-    cpus params.variant_cores
+    cpus params.cores
 
     tag { SM }
 
@@ -467,7 +516,7 @@ process call_variants_union {
         # tabix -s 1 -b 2 -e 2 -f sitelist.tsv.gz
         
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
-        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.variant_cores} sh -c "samtools mpileup --redo-BAQ --region {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${params.reference} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.cores} sh -c "samtools mpileup --redo-BAQ --region {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${params.reference} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
 
         # Output variant sites
@@ -484,7 +533,7 @@ process generate_union_vcf_list {
 
     cpus 1 
 
-    publishDir analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.analysis_dir + "/vcf", mode: 'copy'
 
     input:
        val vcf_set from union_vcf_set.toSortedList()
@@ -524,11 +573,11 @@ contig_raw_vcf = contig_list*.concat(".merged.raw.vcf.gz")
 
 process concatenate_union_vcf {
 
-    publishDir analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.analysis_dir + "/vcf", mode: 'copy'
 
     input:
         val merge_vcf from raw_vcf.toSortedList()
-        set file("${A}.${B}.parental.vcf.gz"), file("${A}.${B}.parental.vcf.gz.tbi") from parental_vcf_only
+        set file("${params.A}.${params.B}.parental.vcf.gz"), file("${params.A}.${params.B}.parental.vcf.gz.tbi") from parental_vcf_only
 
     output:
         set file("NIL.filtered.vcf.gz"), file("NIL.filtered.vcf.gz.csi") into filtered_vcf
@@ -545,7 +594,7 @@ process concatenate_union_vcf {
         bcftools index merged.raw.vcf.gz
 
         # Add parental strains
-        bcftools merge -O z ${A}.${B}.parental.vcf.gz merged.raw.vcf.gz > NIL.filtered.vcf.gz
+        bcftools merge -O z ${params.A}.${params.B}.parental.vcf.gz merged.raw.vcf.gz > NIL.filtered.vcf.gz
         bcftools index NIL.filtered.vcf.gz
     """
 }
@@ -556,7 +605,7 @@ filtered_vcf.into { filtered_vcf_stat; hmm_vcf; hmm_vcf_clean; hmm_vcf_out; vcf_
 
 process stat_tsv {
 
-    publishDir analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.analysis_dir + "/vcf", mode: 'copy'
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi")  from filtered_vcf_stat
@@ -572,7 +621,7 @@ process stat_tsv {
 
 process output_hmm {
 
-    publishDir analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.analysis_dir + "/vcf", mode: 'copy'
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf
@@ -587,14 +636,14 @@ process output_hmm {
         } || { 
             echo 'is yahmm installed?' 
         }
-        vk hmm --A=${A} --B=${B} NIL.filter.vcf.gz > gt_hmm.tsv
+        vk hmm --A=${params.A} --B=${params.B} NIL.filter.vcf.gz > gt_hmm.tsv
     """
 
 }
 
 process output_hmm_clean {
 
-    publishDir analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.analysis_dir + "/vcf", mode: 'copy'
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf_clean
@@ -609,7 +658,7 @@ process output_hmm_clean {
         } || { 
             echo 'is yahmm installed?' 
         }
-        vk hmm --transition=1e-12 --infill --endfill --A=${A} --B=${B} NIL.filter.vcf.gz > gt_hmm_fill.tsv
+        vk hmm --transition=1e-12 --infill --endfill --A=${params.A} --B=${params.B} NIL.filter.vcf.gz > gt_hmm_fill.tsv
     """
 
 }
@@ -617,7 +666,7 @@ process output_hmm_clean {
 
 process output_hmm_vcf {
 
-    publishDir analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.analysis_dir + "/vcf", mode: 'copy'
 
     input:
         set file("NIL.vcf.gz"), file("NIL.vcf.gz.csi") from hmm_vcf_out
@@ -632,7 +681,7 @@ process output_hmm_vcf {
         } || { 
             echo 'is yahmm installed?' 
         }
-        vk hmm --transition=1e-12 --vcf-out --all-sites --A=${A} --B=${B} NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
+        vk hmm --transition=1e-12 --vcf-out --all-sites --A=${params.A} --B=${params.B} NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
         bcftools index NIL.hmm.vcf.gz
     """
 
@@ -642,25 +691,24 @@ gt_hmm.into { gt_hmm_tsv; gt_hmm_vcf }
 
 process plot_hmm {
 
-    publishDir analysis_dir + "/hmm", mode: 'copy'
+    publishDir params.analysis_dir + "/hmm", mode: 'copy'
 
     input:
         file("gt_hmm_fill.tsv") from gt_hmm_fill
-        file("script.R") from hmm_plot_script
 
     output:
         file("gt_hmm.png")
         file("gt_hmm.svg")
 
     """
-        Rscript --vanilla script.R
+        Rscript --vanilla `which plot_hmm.R` "${params.cA}" "${params.cB}"
     """
 
 }
 
 process generate_issue_plots {
 
-    publishDir analysis_dir + "/plots", mode: 'copy'
+    publishDir params.analysis_dir + "/plots", mode: 'copy'
 
     errorStrategy 'ignore'
 
@@ -669,7 +717,6 @@ process generate_issue_plots {
         file("fq_coverage.tsv") from fq_coverage_plot
         file("SM_coverage.tsv") from SM_coverage_plot
         file("bam_duplicates.tsv") from bam_duplicates_plot
-        file("qc_plots.R") from qc_plots_script
 
     output:
         file("coverage_comparison.png")
@@ -680,14 +727,14 @@ process generate_issue_plots {
         file("duplicates.svg")
 
     """
-        Rscript --vanilla qc_plots.R
+        Rscript --vanilla `which qc_plots.R`
     """
 }
 
 
 process output_tsv {
 
-    publishDir analysis_dir + "/hmm", mode: 'copy'
+    publishDir params.analysis_dir + "/hmm", mode: 'copy'
 
     input:
         set file("NIL.hmm.vcf.gz"), file("NIL.hmm.vcf.gz.csi") from gt_hmm_tsv
@@ -698,5 +745,32 @@ process output_tsv {
     """
         cat <(echo -e "CHROM\tPOS\tSAMPLE\tGT\tGT_ORIG\tAD") <(bcftools query -f '[%CHROM\t%POS\t%SAMPLE\t%GT\t%GT_ORIG\t%AD\n]' NIL.hmm.vcf.gz | sed 's/0\\/0/0/g' | sed 's/1\\/1/1/g') > gt_hmm.tsv
     """
+
+}
+
+
+workflow.onComplete {
+
+    summary = """
+
+    Pipeline execution summary
+    ---------------------------
+    Completed at: ${workflow.complete}
+    Duration    : ${workflow.duration}
+    Success     : ${workflow.success}
+    workDir     : ${workflow.workDir}
+    exit status : ${workflow.exitStatus}
+    Error report: ${workflow.errorReport ?: '-'}
+    Git info: $workflow.repository - $workflow.revision [$workflow.commitId]
+
+    """
+
+    println summary
+
+    def outlog = new File("${params.analysis_dir}/log.txt")
+    outlog.newWriter().withWriter {
+        outlog << param_summary
+        outlog << summary
+    }
 
 }

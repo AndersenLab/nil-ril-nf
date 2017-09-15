@@ -90,3 +90,5 @@ ENV/
 
 work/
 .nextflow.log*
+
+results/
