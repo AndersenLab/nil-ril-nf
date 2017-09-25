@@ -12,17 +12,29 @@ params.A = 'N2'
 params.B = 'CB4856'
 params.cA = "#0080FF"
 params.cB = "#FF8000"
-params.analysis_folder = "results"
-params.analysis_dir = params.analysis_folder + "/NIL-${params.A}-${params.B}-${date}"
-params.vcf = "(required)" // default to avoid warning.
+params.out = "NIL-${params.A}-${params.B}-${date}"
 params.reference = "(required)"
-params.fqs = "(required)"
 params.tmpdir = "tmp/"
+
+
+if (params.debug == true) {
+    println """
+
+        ***Using debug mode***
+
+    """
+    params.fqs = "${workflow.projectDir}/debug_data/fq_sheet.tsv"
+    params.vcf = "${workflow.projectDir}/debug_data/N2_CB.simple.vcf.gz"
+} else {
+    params.fqs = "(required)"
+    params.vcf = "(required)"
+}
 
 // Define VCF
 parental_vcf=file("${params.vcf}")
 reference_handle = file("${params.reference}")
 File fq_file = new File("${params.fqs}")
+
 
 param_summary = '''
 
@@ -43,12 +55,13 @@ param_summary = '''
     --B                  Parent B                       ${params.B}
     --cA                 Parent A color (for plots)     ${params.cA}
     --cB                 Parent B color (for plots)     ${params.cB}
-    --analysis_folder    Folder for results             ${params.analysis_folder}
-    --analysis_dir       Sub-Folder                     ${params.analysis_dir}
+    --out                Directory to output results    ${params.out}
     --fqs                fastq file (see help)          ${params.fqs}
     --reference          Reference Genome               ${params.reference}
     --vcf                VCF to fetch parents from      ${params.vcf}
     --tmpdir             A temporary directory          ${params.tmpdir}
+
+    HELP: http://andersenlab.org/dry-guide/pipeline-nil/
 """
 
 println param_summary
@@ -91,13 +104,6 @@ if (!fq_file.exists()) {
     System.exit(1)
 }
 
-if (params.debug == true) {
-    println """
-
-        ***Using debug mode***
-
-    """
-}
 
 // Define contigs here!
 contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"];
@@ -116,7 +122,7 @@ fqs = Channel.from(fq_file.collect { it.tokenize( '\t' ) })
 
 process generate_sitelist {
 
-    publishDir params.analysis_dir + "/sitelist", mode: 'copy'
+    publishDir params.out + "/sitelist", mode: 'copy'
     
     input:
         file("parental.vcf.gz") from parental_vcf
@@ -212,7 +218,7 @@ process fq_idx_stats {
 
 process fq_combine_idx_stats {
 
-    publishDir params.analysis_dir + "/fq", mode: 'copy'
+    publishDir params.out + "/fq", mode: 'copy'
 
     input:
         val bam_idxstats from fq_idxstats_set.toSortedList()
@@ -248,7 +254,7 @@ process fq_bam_stats {
 
 process combine_bam_stats {
 
-    publishDir params.analysis_dir + "/fq", mode: 'copy'
+    publishDir params.out + "/fq", mode: 'copy'
 
     input:
         val stat_files from bam_stat_files.toSortedList()
@@ -282,7 +288,7 @@ process fq_coverage {
 
 process fq_coverage_merge {
 
-    publishDir params.analysis_dir + "/fq", mode: 'copy'
+    publishDir params.out + "/fq", mode: 'copy'
 
     input:
         val fq_set from fq_coverage.toSortedList()
@@ -307,7 +313,7 @@ process merge_bam {
 
     echo true
 
-    storeDir params.analysis_dir + "/bam"
+    storeDir params.out + "/bam"
 
     cpus params.cores
 
@@ -365,7 +371,7 @@ process idx_stats_SM {
 
 process combine_idx_stats {
 
-    publishDir params.analysis_dir +"/SM", mode: 'copy'
+    publishDir params.out +"/SM", mode: 'copy'
 
     input:
         val bam_idxstats from bam_idxstats_set.toSortedList()
@@ -402,7 +408,7 @@ process SM_bam_stats {
 
 process combine_SM_bam_stats {
 
-    publishDir params.analysis_dir + "/SM", mode: 'copy'
+    publishDir params.out + "/SM", mode: 'copy'
 
     input:
         val stat_files from SM_bam_stat_files.toSortedList()
@@ -420,7 +426,7 @@ process combine_SM_bam_stats {
 
 process format_duplicates {
 
-    publishDir params.analysis_dir + "/duplicates", mode: 'copy'
+    publishDir params.out + "/duplicates", mode: 'copy'
 
     input:
         val duplicates_set from duplicates_file.toSortedList()
@@ -459,7 +465,7 @@ process SM_coverage {
 
 process SM_coverage_merge {
 
-    publishDir params.analysis_dir + "/SM", mode: 'copy'
+    publishDir params.out + "/SM", mode: 'copy'
 
 
     input:
@@ -535,7 +541,7 @@ process generate_union_vcf_list {
 
     cpus 1 
 
-    publishDir params.analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.out + "/vcf", mode: 'copy'
 
     input:
        val vcf_set from union_vcf_set.toSortedList()
@@ -575,7 +581,7 @@ contig_raw_vcf = contig_list*.concat(".merged.raw.vcf.gz")
 
 process concatenate_union_vcf {
 
-    publishDir params.analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.out + "/vcf", mode: 'copy'
 
     input:
         val merge_vcf from raw_vcf.toSortedList()
@@ -607,7 +613,7 @@ filtered_vcf.into { filtered_vcf_stat; hmm_vcf; hmm_vcf_clean; hmm_vcf_out; vcf_
 
 process stat_tsv {
 
-    publishDir params.analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.out + "/vcf", mode: 'copy'
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi")  from filtered_vcf_stat
@@ -623,7 +629,7 @@ process stat_tsv {
 
 process output_hmm {
 
-    publishDir params.analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.out + "/vcf", mode: 'copy'
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf
@@ -645,7 +651,7 @@ process output_hmm {
 
 process output_hmm_clean {
 
-    publishDir params.analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.out + "/vcf", mode: 'copy'
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf_clean
@@ -668,7 +674,7 @@ process output_hmm_clean {
 
 process output_hmm_vcf {
 
-    publishDir params.analysis_dir + "/vcf", mode: 'copy'
+    publishDir params.out + "/vcf", mode: 'copy'
 
     input:
         set file("NIL.vcf.gz"), file("NIL.vcf.gz.csi") from hmm_vcf_out
@@ -693,7 +699,7 @@ gt_hmm.into { gt_hmm_tsv; gt_hmm_vcf }
 
 process plot_hmm {
 
-    publishDir params.analysis_dir + "/hmm", mode: 'copy'
+    publishDir params.out + "/hmm", mode: 'copy'
 
     input:
         file("gt_hmm_fill.tsv") from gt_hmm_fill
@@ -710,7 +716,7 @@ process plot_hmm {
 
 process generate_issue_plots {
 
-    publishDir params.analysis_dir + "/plots", mode: 'copy'
+    publishDir params.out + "/plots", mode: 'copy'
 
     errorStrategy 'ignore'
 
@@ -736,7 +742,7 @@ process generate_issue_plots {
 
 process output_tsv {
 
-    publishDir params.analysis_dir + "/hmm", mode: 'copy'
+    publishDir params.out + "/hmm", mode: 'copy'
 
     input:
         set file("NIL.hmm.vcf.gz"), file("NIL.hmm.vcf.gz.csi") from gt_hmm_tsv
@@ -769,7 +775,7 @@ workflow.onComplete {
 
     println summary
 
-    def outlog = new File("${params.analysis_dir}/log.txt")
+    def outlog = new File("${params.out}/log.txt")
     outlog.newWriter().withWriter {
         outlog << param_summary
         outlog << summary
