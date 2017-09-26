@@ -477,7 +477,7 @@ process SM_coverage_merge {
     Call variants using the merged site list
 */
 
-merged_bams_union.merge(site_list) { a, b -> [a, b].flatten() }.into { union_vcf_channel; union_vcf_channel_print }
+merged_bams_union.combine(site_list).into { union_vcf_channel; union_vcf_channel_print }
 
 union_vcf_channel_print.println()
 
@@ -675,7 +675,7 @@ process output_hmm_vcf {
         } || { 
             echo 'is yahmm installed?' 
         }
-        vk hmm --transition=1e-12 --vcf-out --all-sites --A=${params.A} --B=${params.B} NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
+        vk hmm --transition=1e-12 --vcf-out --A=${params.A} --B=${params.B} NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
         bcftools index NIL.hmm.vcf.gz
     """
 

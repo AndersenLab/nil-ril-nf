@@ -92,3 +92,7 @@ work/
 .nextflow.log*
 
 results/
+
+work/
+.nextflow/
+NIL-*/
