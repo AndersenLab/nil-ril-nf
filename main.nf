@@ -166,37 +166,23 @@ process perform_alignment {
 
     script:
 
-    if( params.debug == true )
-        """
-            zcat ${fq1} | head -n 5000 | gzip > fq1.fq.gz
-            zcat ${fq2} | head -n 5000 | gzip > fq2.fq.gz
-            bwa mem -t ${params.cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${params.reference} fq1.fq.gz fq2.fq.gz | \\
-            sambamba view --nthreads=${params.cores} --sam-input --format=bam --with-header /dev/stdin | \\
-            sambamba sort --nthreads=${params.cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
-            sambamba index --nthreads=${params.cores} ${ID}.bam
+    """
+        bwa mem -t ${params.cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${params.reference} ${fq1} ${fq2} | \\
+        sambamba view --nthreads=${params.cores} --sam-input --format=bam --with-header /dev/stdin | \\
+        sambamba sort --nthreads=${params.cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
+        sambamba index --nthreads=${params.cores} ${ID}.bam
 
-            if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
-                exit 1;
-            fi
-        """ 
-    else
-        """
-            bwa mem -t ${params.cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${params.reference} ${fq1} ${fq2} | \\
-            sambamba view --nthreads=${params.cores} --sam-input --format=bam --with-header /dev/stdin | \\
-            sambamba sort --nthreads=${params.cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
-            sambamba index --nthreads=${params.cores} ${ID}.bam
-
-            if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
-                exit 1;
-            fi
-        """
+        if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
+            exit 1;
+        fi
+    """
 }
 
 aligned_bams.into { 
-                           sample_bams_fq_idx_stats;
-                           fq_stat_bams;
-                           fq_cov_bam_indices; 
-                         }
+                     sample_bams_fq_idx_stats;
+                     fq_stat_bams;
+                     fq_cov_bam_indices; 
+                  }
 
 /*
     fq idx stats
