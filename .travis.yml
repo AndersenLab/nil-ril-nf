@@ -15,4 +15,4 @@ install:
   - cd ${TRAVIS_BUILD_DIR}
   - ls
 
-script: ./test.sh
+script: bash test.sh
