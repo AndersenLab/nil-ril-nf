@@ -15,9 +15,9 @@ tar -xvzf WS245.tar.gz
 cmd="""nextflow run main.nf  \
                    -name \"$run_name\" \
                    --reference WS245.fa.gz
-                   --fqs /test_data/fq_sheet.tsv \
+                   --fqs test_data/fq_sheet.tsv \
                    --with-docker andersenlab/nil-ril \
-                   --vcf /test_data/N2_CB.simple.vcf.gz \
+                   --vcf test_data/N2_CB.simple.vcf.gz \
                    --cores 1 """
 
 echo "Starting nextflow... Command:"
