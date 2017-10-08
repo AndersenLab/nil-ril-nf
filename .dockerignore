@@ -1,4 +1,6 @@
+.git
 .nextflow
-work/*
-analysis/*
-reference/*
+bin
+results
+scripts
+work
