@@ -12,7 +12,7 @@ install:
   - cd /tmp/nextflow
   - wget -qO- get.nextflow.io | bash
   - sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
-  - ls ${TRAVIS_BUILD_DIR}
-  - cd ${TRAVIS_BUILD_DIR}/${TRAVIS_REPO_SLUG}
+  - cd ${TRAVIS_BUILD_DIR}
+  - ls
 
 script: "test.sh"
