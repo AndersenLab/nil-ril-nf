@@ -5,6 +5,7 @@ RUN brew install gcc
 RUN brew tap homebrew/science \
     && brew install \
             bwa \
+            samtools \
             bcftools \
             bedtools \
             fastqc \
