@@ -11,14 +11,14 @@ run_name="Test NIL-nf: "$(date +%s)
 curl https://storage.googleapis.com/andersen/genome/c_elegans/WS245/WS245.tar.gz > WS245.tar.gz
 tar -xvzf WS245.tar.gz
 
-
 cmd="""nextflow run main.nf  \
                    -name \"$run_name\" \
+                   -with-docker andersenlab/nil-ril \
                    --reference WS245.fa.gz
                    --fqs test_data/fq_sheet.tsv \
-                   --with-docker andersenlab/nil-ril \
                    --vcf test_data/N2_CB.simple.vcf.gz \
-                   --cores 1 """
+                   --cores 1 \
+                   -resume """
 
 echo "Starting nextflow... Command:"
 echo $cmd
