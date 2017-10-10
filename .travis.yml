@@ -1,8 +1,11 @@
 sudo: required
 
-cache:
-  directories:
-  - ${TRAVIS_BUILD_DIR}/work
+addons:
+  artifacts:
+    paths:
+    - work/
+    - .nextflow.log
+
 
 language: java
 
