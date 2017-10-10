@@ -3,8 +3,7 @@ sudo: required
 addons:
   artifacts:
     paths:
-    - work/
-    - .nextflow.log
+    - ${TRAVIS_BUILD_DIR}
 
 
 language: java
