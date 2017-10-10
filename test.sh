@@ -18,6 +18,7 @@ cmd="""nextflow run main.nf  \
                    --fqs test_data/fq_sheet.tsv \
                    --vcf test_data/N2_CB.simple.vcf.gz \
                    --cores 1 \
+                   --tmpdir ${TRAVIS_BUILD_DIR}/tmp \
                    -resume """
 
 echo "Starting nextflow... Command:"
