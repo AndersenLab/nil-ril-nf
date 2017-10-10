@@ -1,5 +1,9 @@
 sudo: required
 
+cache:
+  directories:
+  - ${TRAVIS_BUILD_DIR}/work
+
 language: java
 
 jdk: openjdk8
