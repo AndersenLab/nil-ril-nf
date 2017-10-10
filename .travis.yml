@@ -2,7 +2,7 @@ sudo: required
 
 cache:
   directories:
-  - ${TRAVIS_BUILD_DIR}/work
+  - /home/travis/build/AndersenLab/nil-nf/work
 
 language: java
 
@@ -10,7 +10,7 @@ jdk: openjdk8
 
 services:
   - docker
-
+]
 install:
   - mkdir /tmp/nextflow
   - cd /tmp/nextflow
