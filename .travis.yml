@@ -2,7 +2,7 @@ sudo: required
 
 cache:
   directories:
-  - /home/travis/build/AndersenLab/nil-nf/work
+  - ${TRAVIS_BUILD_DIR}/work
 
 language: java
 
