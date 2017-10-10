@@ -131,16 +131,16 @@ process generate_sitelist {
         set file("${params.A}.${params.B}.parental.vcf.gz"), file("${params.A}.${params.B}.parental.vcf.gz.csi") into parental_vcf_only
 
     """
-        # Generate parental VCF
-        bcftools view --samples ${params.A},${params.B} -m 2 -M 2 parental.vcf.gz | \\
-        awk '\$0 ~ "^#" || (\$0 ~ "0/0" && \$0 ~ "1/1") { print }' | \\
-        bcftools filter -O z --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' > ${params.A}.${params.B}.parental.vcf.gz
-        bcftools index ${params.A}.${params.B}.parental.vcf.gz
+    # Generate parental VCF
+    bcftools view --samples ${params.A},${params.B} -m 2 -M 2 parental.vcf.gz | \\
+    awk '\$0 ~ "^#" || (\$0 ~ "0/0" && \$0 ~ "1/1") { print }' | \\
+    bcftools filter -O z --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' > ${params.A}.${params.B}.parental.vcf.gz
+    bcftools index ${params.A}.${params.B}.parental.vcf.gz
 
-        # Generate Sitelist
-        bcftools query --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' -f '%CHROM\t%POS\t%REF,%ALT\n' ${params.A}.${params.B}.parental.vcf.gz > ${params.A}.${params.B}.sitelist.tsv
-        bgzip ${params.A}.${params.B}.sitelist.tsv
-        tabix -s 1 -b 2 -e 2 ${params.A}.${params.B}.sitelist.tsv.gz
+    # Generate Sitelist
+    bcftools query --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' -f "%CHROM\\t%POS\\t%REF,%ALT\\n" ${params.A}.${params.B}.parental.vcf.gz > ${params.A}.${params.B}.sitelist.tsv
+    bgzip ${params.A}.${params.B}.sitelist.tsv
+    tabix -s 1 -b 2 -e 2 ${params.A}.${params.B}.sitelist.tsv.gz
     """   
 }
 
