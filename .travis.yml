@@ -22,4 +22,4 @@ install:
   - cd ${TRAVIS_BUILD_DIR}
   - docker pull andersenlab/nil-ril
 
-script: bash test.sh
+script: sudo bash test.sh
