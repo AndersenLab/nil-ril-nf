@@ -14,13 +14,12 @@ services:
   - docker
 
 install:
+  - mkdir tmp
   - mkdir /tmp/nextflow
   - cd /tmp/nextflow
   - wget -qO- get.nextflow.io | bash
   - sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
   - cd ${TRAVIS_BUILD_DIR}
   - docker pull andersenlab/nil-ril
-  - chmod +x test.sh
-  - chmod +x /usr/local/bin/nextflow
 
 script: bash test.sh
