@@ -15,6 +15,7 @@ services:
 
 install:
   - mkdir tmp
+  - mkdir results
   - mkdir /tmp/nextflow
   - cd /tmp/nextflow
   - wget -qO- get.nextflow.io | bash
@@ -22,4 +23,4 @@ install:
   - cd ${TRAVIS_BUILD_DIR}
   - docker pull andersenlab/nil-ril
 
-script: sudo bash test.sh
+script: bash test.sh
