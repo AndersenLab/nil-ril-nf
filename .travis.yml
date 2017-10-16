@@ -21,5 +21,7 @@ install:
   - wget -qO- get.nextflow.io | bash
   - sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
   - cd ${TRAVIS_BUILD_DIR}
+  - mkdir work
+  - sudo chown -R root:`whoami` work
 
 script: "./test.sh"
