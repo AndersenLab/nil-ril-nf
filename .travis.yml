@@ -23,6 +23,5 @@ install:
   - cd ${TRAVIS_BUILD_DIR}
   - mkdir work
   - sudo chown -R root:`whoami` .
-  - sudo chown -R root:`whoami` work
-
+  
 script: "./test.sh"
