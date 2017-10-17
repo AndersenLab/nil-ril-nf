@@ -23,8 +23,8 @@ if (params.debug == true) {
         ***Using debug mode***
 
     """
-    params.fqs = "${workflow.projectDir}/debug_data/fq_sheet.tsv"
-    params.vcf = "${workflow.projectDir}/debug_data/N2_CB.simple.vcf.gz"
+    params.fqs = "${workflow.projectDir}/test_data/fq_sheet.tsv"
+    params.vcf = "${workflow.projectDir}/test_data/N2_CB.simple.vcf.gz"
 } else {
     params.fqs = "(required)"
     params.vcf = "(required)"
