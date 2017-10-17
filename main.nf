@@ -14,7 +14,7 @@ params.cA = "#0080FF"
 params.cB = "#FF8000"
 params.out = "NIL-${params.A}-${params.B}-${date}"
 params.reference = "(required)"
-params.tmpdir = "tmp"
+params.tmpdir = "tmp/"
 
 
 if (params.debug == true) {
