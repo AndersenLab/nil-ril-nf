@@ -1,11 +1,5 @@
 sudo: required
 
-addons:
-  artifacts:
-    paths:
-    - ${TRAVIS_BUILD_DIR}
-
-
 language: java
 
 jdk: openjdk8
