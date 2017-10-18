@@ -302,7 +302,7 @@ fq_concordance_sitelist = fq_concordance_bams.combine(site_list_fq_concordance)
 
 process fq_concordance {
 
-    cpus call_variant_cpus
+    cpus cores
 
     tag { SM }
 
@@ -320,11 +320,11 @@ process fq_concordance {
         # DO NOT INDEX ORIGINAL BAM; ELIMINATES CACHE!
         bam_list="`ls -1 *.bam | grep -v 'input.bam'`"
 
-        ls -1 *.bam | grep -v 'input.bam' | xargs --verbose -I {} -P ${call_variant_cpus} sh -c "samtools index {}"
+        ls -1 *.bam | grep -v 'input.bam' | xargs --verbose -I {} -P ${cores} sh -c "samtools index {}"
 
         # Call a union set of variants
         for rg in \$rg_list; do
-            echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${call_variant_cpus} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,SP --fasta-ref ${reference} \${rg}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels --multiallelic-caller -O z > {}.\${rg}.vcf.gz"
+            echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,SP --fasta-ref ${reference} \${rg}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels --multiallelic-caller -O z > {}.\${rg}.vcf.gz"
             order=`echo \${contigs} | tr ' ' '\\n' | awk -v rg=\${rg} '{ print \$1 "." rg ".vcf.gz" }'`
             # Output variant sites
             bcftools concat \${order} -O v | \\
