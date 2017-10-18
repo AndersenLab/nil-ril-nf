@@ -184,6 +184,7 @@ aligned_bams.into {
                      sample_bams_fq_idx_stats;
                      fq_stat_bams;
                      fq_cov_bam_indices; 
+                     fq_concordance_bams
                   }
 
 /*
