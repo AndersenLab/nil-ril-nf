@@ -144,6 +144,7 @@ process generate_sitelist {
     """   
 }
 
+site_list.into { site_list_fq_concordance; site_list_merged_bams }
 
 /*
     ===============
@@ -152,6 +153,8 @@ process generate_sitelist {
 */
 
 process perform_alignment {
+
+    echo true
 
     cpus params.cores
 
@@ -289,6 +292,66 @@ process fq_coverage_merge {
         cat <(echo -e 'fq\\tcoverage') <( cat fq_coverage.full.tsv | grep 'genome' | grep 'depth_of_coverage' | cut -f 1,6) > fq_coverage.tsv
     """
 }
+
+
+fq_concordance_sitelist = fq_concordance_bams.combine(site_list_fq_concordance)
+/* 
+    Call variants at the individual level for concordance
+*/
+
+process fq_concordance {
+
+    cpus call_variant_cpus
+
+    tag { SM }
+
+    input:
+        set val(SM), file("input.bam"), file("input.bam.bai"), file('sitelist.tsv.gz'), file('sitelist.tsv.gz.tbi') from fq_concordance_sitelist
+
+    output:
+        file('out.tsv') into fq_concordance_out
+
+    """
+        # Split bam file into individual read groups; Ignore MtDNA
+        contigs="`samtools view -H input.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40 | grep -v 'MtDNA' | tr ' ' '\\n'`"
+        rg_list="`samtools view -H input.bam | grep '@RG' | grep -oP 'ID:([^ \\t]+)' | sed 's/ID://g'`"
+        samtools split -f '%!.%.' input.bam
+        # DO NOT INDEX ORIGINAL BAM; ELIMINATES CACHE!
+        bam_list="`ls -1 *.bam | grep -v 'input.bam'`"
+
+        ls -1 *.bam | grep -v 'input.bam' | xargs --verbose -I {} -P ${call_variant_cpus} sh -c "samtools index {}"
+
+        # Call a union set of variants
+        for rg in \$rg_list; do
+            echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${call_variant_cpus} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,SP --fasta-ref ${reference} \${rg}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels --multiallelic-caller -O z > {}.\${rg}.vcf.gz"
+            order=`echo \${contigs} | tr ' ' '\\n' | awk -v rg=\${rg} '{ print \$1 "." rg ".vcf.gz" }'`
+            # Output variant sites
+            bcftools concat \${order} -O v | \\
+            vk geno het-polarization - | \\
+            bcftools query -f '%CHROM\\t%POS[\\t%GT\\t${SM}\\n]' | grep -v '0/1' | awk -v rg=\${rg} '{ print \$0 "\\t" rg }' > \${rg}.rg_gt.tsv
+        done;
+        cat *.rg_gt.tsv > rg_gt.tsv
+        touch out.tsv
+        Rscript --vanilla `which fq_concordance.R`
+    """
+}
+
+process combine_fq_concordance {
+
+    publishDir params.out + "/concordance", mode: 'copy', overwrite: true
+
+    input:
+        file("out*.tsv") from fq_concordance_out.toSortedList()
+
+    output:
+        file("fq_concordance.tsv")
+
+    """
+        cat <(echo 'a\tb\tconcordant_sites\ttotal_sites\tconcordance\tSM') out*.tsv > fq_concordance.tsv
+    """
+
+}
+
 
 sample_aligned_bams.into { sample_aligned_bams_out; sample_aligned_bams_use}
 
@@ -476,11 +539,7 @@ process SM_coverage_merge {
     Call variants using the merged site list
 */
 
-merged_bams_union.combine(site_list).into { union_vcf_channel; union_vcf_channel_print }
-
-union_vcf_channel_print.println()
-
-
+merged_bams_union.combine(site_list_merged_bams).set { union_vcf_channel }
 
 /*
     Call variants
@@ -538,7 +597,6 @@ process generate_union_vcf_list {
         print vcf_set
 
     """
-        # run 3
         echo ${vcf_set.join(" ")} | tr ' ' '\\n' > union_vcfs.txt
     """
 }
@@ -634,7 +692,7 @@ process output_hmm {
 
 }
 
-process output_hmm_clean {
+process output_hmm_fill {
 
     publishDir params.out + "/vcf", mode: 'copy'
 
