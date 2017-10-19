@@ -173,7 +173,7 @@ process perform_alignment {
     """
         bwa mem -t ${params.cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference_handle} ${fq1} ${fq2} | \\
         sambamba view --nthreads=${params.cores} --show-progress --sam-input --format=bam --with-header /dev/stdin | \\
-        sambamba sort --nthreads=${params.cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin
+        sambamba sort --nthreads=${params.cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin 2>&1
         sambamba index --nthreads=${params.cores} ${ID}.bam
 
         if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
