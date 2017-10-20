@@ -74,7 +74,7 @@ if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs
     The Set/Default column shows what the value is currently set to
     or would be set to if it is not specified (it's default).
     """
-    System.exit(0)
+    System.exit(1)
 } 
 
 if (!parental_vcf.exists()) {
