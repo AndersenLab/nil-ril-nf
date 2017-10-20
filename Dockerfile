@@ -14,7 +14,8 @@ RUN brew tap homebrew/science \
             vcflib \
             vcftools \
             python2 \
-            R
+            R \
+            pigz
 
 RUN brew install fastqc --ignore-dependencies
 
@@ -32,7 +33,7 @@ RUN Rscript -e 'install.packages(c("tidyverse", "cowplot"))'
 RUN ln /home/linuxbrew/.linuxbrew/bin/python2 /home/linuxbrew/.linuxbrew/bin/python
 
 # Build Olson TZ database
-RUN mkdir -p /var/zone_info \
-       && cd /var/zone_info \
-       && wget https://github.com/danielecook/danielecook.github.io/raw/master/downloads/zone_info.zip \
-       && echo "export TZDIR=/var/zone_info" >> ~/.bash_profile
+RUN mkdir -p /home/linuxbrew/zone_info \
+       && cd /home/linuxbrew/zone_info \
+       && curl https://github.com/danielecook/danielecook.github.io/raw/master/downloads/zone_info.zip > /home/linuxbrew/zone_info/zone_info.zip \
+       && echo "export TZDIR=/home/linuxbrew/zone_info" >> ~/.bash_profile
