@@ -32,7 +32,7 @@ if (params.debug == true) {
 
 // Define VCF
 parental_vcf=file("${params.vcf}")
-reference_handle = file("${params.reference}")
+File reference_handle = new File("${params.reference}")
 File fq_file = new File("${params.fqs}")
 
 
@@ -167,8 +167,6 @@ process perform_alignment {
     output:
         set SM, ID, LB, file("${ID}.bam"), file("${ID}.bam.bai") into aligned_bams
         set SM, file("${ID}.bam") into sample_aligned_bams
-
-    script:
 
     """
         bwa mem -t ${params.cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference_handle} ${fq1} ${fq2} | \\
@@ -316,8 +314,8 @@ process fq_concordance {
 
     """
         # Split bam file into individual read groups; Ignore MtDNA
-        contigs="`samtools view -H input.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40 | grep -v 'MtDNA' | tr ' ' '\\n'`"
-        rg_list="`samtools view -H input.bam | grep '@RG' | grep -oP 'ID:([^ \\t]+)' | sed 's/ID://g'`"
+        contigs="`samtools view -H input.bam | awk '\$0 ~ "^@SQ" { gsub("SN:", "", \$2); print \$2 }' | grep -v 'MtDNA' | tr ' ' '\\n'`"
+        rg_list="`samtools view -H input.bam | awk '\$0 ~ "^@RG"' | grep -oP 'ID:([^ \\t]+)' | sed 's/ID://g'`"
         samtools split -f '%!.%.' input.bam
         # DO NOT INDEX ORIGINAL BAM; ELIMINATES CACHE!
         bam_list="`ls -1 *.bam | grep -v 'input.bam'`"
