@@ -62,7 +62,6 @@ RUN brew tap homebrew/science \
             vcflib \
             vcftools \
             python2 \
-            R \
             pigz
 
 RUN brew install fastqc --ignore-dependencies
