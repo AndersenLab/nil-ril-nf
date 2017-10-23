@@ -35,5 +35,5 @@ RUN ln /home/linuxbrew/.linuxbrew/bin/python2 /home/linuxbrew/.linuxbrew/bin/pyt
 # Build Olson TZ database
 RUN mkdir -p /usr/share/zoneinfo \
        && cd /usr/share/zoneinfo \
-       && curl https://github.com/danielecook/danielecook.github.io/raw/master/downloads/zone_info.zip > /usr/share/zoneinfo/zone_info.zip \
-       && echo "export TZDIR=/usr/share/zoneinfo" >> ~/.bash_profile
+       && curl https://github.com/danielecook/danielecook.github.io/raw/master/downloads/zone_info.zip > /usr/share/zoneinfo/zone_info.zip
+ENV TZDIR /usr/share/zoneinfo
