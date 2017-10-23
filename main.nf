@@ -14,7 +14,7 @@ params.cA = "#0080FF"
 params.cB = "#FF8000"
 params.out = "NIL-${params.A}-${params.B}-${date}"
 params.reference = "(required)"
-params.tmpdir = "tmp/"
+params.tmpdir = "/tmp"
 
 
 if (params.debug == true) {
@@ -32,7 +32,12 @@ if (params.debug == true) {
 
 // Define VCF
 parental_vcf=file("${params.vcf}")
-File reference_handle = new File("${params.reference}")
+File reference = new File("${params.reference}")
+if (params.reference != "(required)") {
+   reference_handle = reference.getAbsolutePath();
+} else {
+    reference_handle = "(required)"
+}
 File fq_file = new File("${params.fqs}")
 
 
@@ -59,7 +64,7 @@ param_summary = '''
     --cB                 Parent B color (for plots)     ${params.cB}
     --out                Directory to output results    ${params.out}
     --fqs                fastq file (see help)          ${params.fqs}
-    --reference          Reference Genome               ${params.reference}
+    --reference          Reference Genome               ${reference_handle}
     --vcf                VCF to fetch parents from      ${params.vcf}
     --tmpdir             A temporary directory          ${params.tmpdir}
 
@@ -86,7 +91,7 @@ if (!parental_vcf.exists()) {
     System.exit(1)
 }
 
-if (!reference_handle.exists()) {
+if (!reference.exists()) {
     println """
 
     Error: Reference does not exist
@@ -569,7 +574,7 @@ process call_variants_union {
         # tabix -s 1 -b 2 -e 2 -f sitelist.tsv.gz
         
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
-        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.cores} sh -c "samtools mpileup --redo-BAQ --region {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${params.reference} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.cores} sh -c "samtools mpileup --redo-BAQ --region {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference_handle} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
 
         # Output variant sites

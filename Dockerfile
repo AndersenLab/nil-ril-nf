@@ -1,5 +1,6 @@
 FROM linuxbrew/linuxbrew:1.3.1
 
+USER root 
 # Install latest version of R
 RUN apt-get update \ 
     && apt-get install -y --no-install-recommends \
@@ -10,7 +11,7 @@ RUN apt-get update \
         wget \
         ca-certificates \
         fonts-texgyre \
-    && rm -rf /var/lib/apt/lists/*
+    && sudo rm -rf /var/lib/apt/lists/*
 
 ## Configure default locale, see https://github.com/rocker-org/rocker/issues/19
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
@@ -40,6 +41,7 @@ RUN apt-get update \
     && rm -rf /tmp/downloaded_packages/ /tmp/*.rds \
     && rm -rf /var/lib/apt/lists/*
 
+USER linuxbrew
 # Install homebrew files
 RUN brew install gcc
 RUN brew install https://raw.githubusercontent.com/Linuxbrew/homebrew-core/043fb1f50af078db481b971d36c605f0dcf72ccd/Formula/jdk.rb
