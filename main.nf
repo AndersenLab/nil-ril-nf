@@ -687,12 +687,6 @@ process output_hmm {
         file("gt_hmm.tsv")
 
     """
-        {
-        pyenv local anaconda2-4.2.0
-        export QT_QPA_PLATFORM=offscreen
-        } || { 
-            echo 'is yahmm installed?' 
-        }
         vk hmm --A=${params.A} --B=${params.B} NIL.filter.vcf.gz > gt_hmm.tsv
     """
 
@@ -709,12 +703,6 @@ process output_hmm_fill {
         file("gt_hmm_fill.tsv") into gt_hmm_fill
 
     """
-        {
-        pyenv local anaconda2-4.2.0
-        export QT_QPA_PLATFORM=offscreen
-        } || { 
-            echo 'is yahmm installed?' 
-        }
         vk hmm --transition=1e-12 --infill --endfill --A=${params.A} --B=${params.B} NIL.filter.vcf.gz > gt_hmm_fill.tsv
     """
 
@@ -732,12 +720,6 @@ process output_hmm_vcf {
         set file("NIL.hmm.vcf.gz"), file("NIL.hmm.vcf.gz.csi") into gt_hmm
 
     """
-        {
-        pyenv local anaconda2-4.2.0
-        export QT_QPA_PLATFORM=offscreen
-        } || { 
-            echo 'is yahmm installed?' 
-        }
         vk hmm --transition=1e-12 --vcf-out --A=${params.A} --B=${params.B} NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
         bcftools index NIL.hmm.vcf.gz
     """
@@ -755,7 +737,7 @@ process plot_hmm {
 
     output:
         file("gt_hmm.png")
-        file("gt_hmm.svg")
+        file("gt_hmm.pdf")
 
     """
         Rscript --vanilla `which plot_hmm.R` "${params.cA}" "${params.cB}"
@@ -777,11 +759,11 @@ process generate_issue_plots {
 
     output:
         file("coverage_comparison.png")
-        file("coverage_comparison.svg")
+        file("coverage_comparison.pdf")
         file("unmapped_reads.png")
-        file("unmapped_reads.svg")
+        file("unmapped_reads.pdf")
         file("duplicates.png")
-        file("duplicates.svg")
+        file("duplicates.pdf")
 
     """
         Rscript --vanilla `which qc_plots.R`

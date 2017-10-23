@@ -23,5 +23,5 @@ ggplot(df,  aes(xmin = start, xmax = end, ymin = index, ymax = index + 1, fill =
   theme(strip.background = element_blank(),
         legend.position = "None")
 
-ggsave("gt_hmm.svg", height = 28, width = 10)
+ggsave("gt_hmm.pdf", height = 28, width = 10)
 ggsave("gt_hmm.png", height = 28, width = 10)

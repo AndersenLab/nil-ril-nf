@@ -12,6 +12,13 @@ RUN apt-get update \
         wget \
         ca-certificates \
         fonts-texgyre \
+        libxml2-dev \
+        libcairo2-dev \
+        libsqlite-dev \
+        libmariadbd-dev \
+        libmariadb-client-lgpl-dev \
+        libpq-dev \
+        libssh2-1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ## Configure default locale, see https://github.com/rocker-org/rocker/issues/19
@@ -62,20 +69,23 @@ RUN brew tap homebrew/science \
             vcflib \
             vcftools \
             python2 \
+            picard-tools \
             pigz
+
 
 RUN brew install fastqc --ignore-dependencies
 
 RUN pip2 install numpy cython
-RUN pip2 install vcf-kit
 RUN pip2 install https://github.com/AndersenLab/bam-toolbox/archive/0.0.3.tar.gz
+RUN pip2 install vcf-kit
 
+# Take over the R lib
+RUN sudo chown -R linuxbrew:linuxbrew /usr/local/
 ENV R_LIBS_USER=/usr/local/lib/R/site-library
 RUN echo "r <- getOption('repos'); r['CRAN'] <- 'http://cran.us.r-project.org'; options(repos = r);" > ~/.Rprofile
 
-# Install R Packages v2
+# Install R packages
 RUN Rscript -e 'install.packages(c("tidyverse", "cowplot"))'
 
 # Link python
 RUN ln /home/linuxbrew/.linuxbrew/bin/python2 /home/linuxbrew/.linuxbrew/bin/python
-

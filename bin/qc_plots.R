@@ -65,4 +65,4 @@ ggplot(dup) +
   pub_theme
 
 ggsave("duplicates.png")
-ggsave("duplicates.svg")
+ggsave("duplicates.pdf")
