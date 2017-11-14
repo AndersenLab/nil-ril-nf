@@ -57,7 +57,7 @@ param_summary = '''
     ==========           ===========                    =======
     
     --debug              Set to 'true' to test          ${params.debug}
-    --cores              Number of cores                ${params.cores}
+    --cores              Number of cores                ${task.cpus}
     --A                  Parent A                       ${params.A}
     --B                  Parent B                       ${params.B}
     --cA                 Parent A color (for plots)     ${params.cA}
@@ -153,6 +153,52 @@ process generate_sitelist {
 
 site_list.into { site_list_fq_concordance; site_list_merged_bams }
 
+
+fqs.into {
+    fqs_kmer
+    fqs_align
+}
+
+/*
+    Kmer counting
+*/
+process kmer_counting {
+
+    container null
+
+    cpus params.cores
+
+    tag { ID }
+
+    input:
+        set SM, ID, LB, fq1, fq2, seq_folder from fqs_kmer
+    output:
+        file("${ID}.kmer.tsv") into kmer_set
+
+    """
+    # fqs will have same number of lines
+    export OFS="\t"
+    fq_wc="`zcat ${fq1} | awk 'NR % 4 == 0' | wc -l`"
+    zcat ${fq1} ${fq2} | fastq-kmers -k 6 | awk -v OFS="\t" -v ID=${ID} -v SM=${SM} -v fq_wc="\${fq_wc}" 'NR > 1 { print \$0, SM, ID, fq_wc }' - > ${ID}.kmer.tsv
+    """
+}
+
+process merge_kmer {
+    
+    publishDir params.out + "/phenotype", mode: 'copy'
+
+    input:
+        file("kmer*.tsv") from kmer_set.collect()
+    output:
+        file("kmers.tsv")
+
+    """
+        cat <(echo "kmer\tfrequency\tSM\tID\twc") *.tsv > kmers.tsv
+    """
+
+}
+
+
 /*
     ===============
     Fastq alignment
@@ -168,16 +214,16 @@ process perform_alignment {
     tag { ID }
 
     input:
-        set SM, ID, LB, fq1, fq2 from fqs
+        set SM, ID, LB, fq1, fq2 from fqs_align
     output:
         set SM, ID, LB, file("${ID}.bam"), file("${ID}.bam.bai") into aligned_bams
         set SM, file("${ID}.bam") into sample_aligned_bams
 
     """
-        bwa mem -t ${params.cores} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference_handle} ${fq1} ${fq2} | \\
-        sambamba view --nthreads=${params.cores} --show-progress --sam-input --format=bam --with-header /dev/stdin | \\
-        sambamba sort --nthreads=${params.cores} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin 2>&1
-        sambamba index --nthreads=${params.cores} ${ID}.bam
+        bwa mem -t ${task.cpus} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference_handle} ${fq1} ${fq2} | \\
+        sambamba view --nthreads=${task.cpus} --show-progress --sam-input --format=bam --with-header /dev/stdin | \\
+        sambamba sort --nthreads=${task.cpus} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin 2>&1
+        sambamba index --nthreads=${task.cpus} ${ID}.bam
 
         if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
             exit 1;
@@ -325,11 +371,11 @@ process fq_concordance {
         # DO NOT INDEX ORIGINAL BAM; ELIMINATES CACHE!
         bam_list="`ls -1 *.bam | grep -v 'input.bam'`"
 
-        ls -1 *.bam | grep -v 'input.bam' | xargs --verbose -I {} -P ${params.cores} sh -c "samtools index {}"
+        ls -1 *.bam | grep -v 'input.bam' | xargs --verbose -I {} -P ${task.cpus} sh -c "samtools index {}"
 
         # Call a union set of variants
         for rg in \$rg_list; do
-            echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.cores} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,SP --fasta-ref ${reference_handle} \${rg}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels --multiallelic-caller -O z > {}.\${rg}.vcf.gz"
+            echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${task.cpus} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,SP --fasta-ref ${reference_handle} \${rg}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels --multiallelic-caller -O z > {}.\${rg}.vcf.gz"
             order=`echo \${contigs} | tr ' ' '\\n' | awk -v rg=\${rg} '{ print \$1 "." rg ".vcf.gz" }'`
             # Output variant sites
             bcftools concat \${order} -O v | \\
@@ -387,12 +433,12 @@ process merge_bam {
         ln -s ${bam[0]} ${SM}.merged.bam
         ln -s ${bam[0]}.bai ${SM}.merged.bam.bai
     else
-        sambamba merge --nthreads=${params.cores} --show-progress ${SM}.merged.bam ${bam.join(" ")}
-        sambamba index --nthreads=${params.cores} ${SM}.merged.bam
+        sambamba merge --nthreads=${task.cpus} --show-progress ${SM}.merged.bam ${bam.join(" ")}
+        sambamba index --nthreads=${task.cpus} ${SM}.merged.bam
     fi
 
     picard MarkDuplicates I=${SM}.merged.bam O=${SM}.bam M=${SM}.duplicates.txt VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=false
-    sambamba index --nthreads=${params.cores} ${SM}.bam
+    sambamba index --nthreads=${task.cpus} ${SM}.bam
     """
 }
 
@@ -574,7 +620,7 @@ process call_variants_union {
         # tabix -s 1 -b 2 -e 2 -f sitelist.tsv.gz
         
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
-        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${params.cores} sh -c "samtools mpileup --redo-BAQ --region {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference_handle} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
+        echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${task.cpus} sh -c "samtools mpileup --redo-BAQ --region {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference_handle} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
 
         # Output variant sites
