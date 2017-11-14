@@ -39,7 +39,7 @@ if (params.reference != "(required)") {
     reference_handle = "(required)"
 }
 File fq_file = new File("${params.fqs}")
-params.fq_file_prefix = fq_file.getParentFile().getAbsolutePath();
+params.fq_file_prefix = fq_file.getParentFile().getAbsolutePath() + "/";
 
 
 param_summary = '''
@@ -118,7 +118,7 @@ contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"];
 contigs = Channel.from(contig_list)
 
 fqs = Channel.from(fq_file.collect { it.tokenize( '\t' ) })
-             .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${params.fq_file_prefix}/${fq1}"), file("${params.fq_file_prefix}/${fq2}")] }
+             .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${params.fq_file_prefix}${fq1}"), file("${params.fq_file_prefix}${fq2}")] }
 
 
 /*
