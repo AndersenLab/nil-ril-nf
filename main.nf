@@ -57,7 +57,7 @@ param_summary = '''
     ==========           ===========                    =======
     
     --debug              Set to 'true' to test          ${params.debug}
-    --cores              Number of cores                ${task.cpus}
+    --cores              Number of cores                ${params.cores}
     --A                  Parent A                       ${params.A}
     --B                  Parent B                       ${params.B}
     --cA                 Parent A color (for plots)     ${params.cA}
