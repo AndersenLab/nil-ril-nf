@@ -39,6 +39,7 @@ if (params.reference != "(required)") {
     reference_handle = "(required)"
 }
 File fq_file = new File("${params.fqs}")
+params.fq_file_prefix = fq_file.getParentFile().getAbsolutePath();
 
 
 param_summary = '''
@@ -64,6 +65,7 @@ param_summary = '''
     --cB                 Parent B color (for plots)     ${params.cB}
     --out                Directory to output results    ${params.out}
     --fqs                fastq file (see help)          ${params.fqs}
+    --fq_file_prefix     fastq prefix (see help)        ${params.fq_file_prefix}
     --reference          Reference Genome               ${reference_handle}
     --vcf                VCF to fetch parents from      ${params.vcf}
     --tmpdir             A temporary directory          ${params.tmpdir}
@@ -115,9 +117,8 @@ if (!fq_file.exists()) {
 contig_list = ["I", "II", "III", "IV", "V", "X", "MtDNA"];
 contigs = Channel.from(contig_list)
 
-fq_file_prefix = fq_file.getParentFile().getAbsolutePath();
 fqs = Channel.from(fq_file.collect { it.tokenize( '\t' ) })
-             .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${fq_file_prefix}/${fq1}"), file("${fq_file_prefix}/${fq2}")] }
+             .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${params.fq_file_prefix}/${fq1}"), file("${params.fq_file_prefix}/${fq2}")] }
 
 
 /*
