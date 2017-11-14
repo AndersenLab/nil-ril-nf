@@ -12,7 +12,7 @@ curl https://storage.googleapis.com/andersen/genome/c_elegans/WS245/WS245.tar.gz
 tar -xvzf WS245.tar.gz
 
 cmd="""nextflow run main.nf  \
-                   -with-docker andersenlab/nil-ril \
+                   -with-docker andersenlab/nil-ril-nf \
                    -profile travis \
                    --reference WS245.fa.gz
                    --fqs ${TRAVIS_BUILD_DIR}/test_data/fq_sheet.tsv \

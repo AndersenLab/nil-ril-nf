@@ -5,7 +5,7 @@
  *  
  */
 
-date = new Date().format( 'yyyy-MM-dd' )
+date = new Date().format( 'yyyyMMdd' )
 params.debug = false
 params.cores = 4
 params.A = 'N2'
@@ -637,19 +637,19 @@ process generate_union_vcf_list {
 
     cpus 1 
 
-    publishDir params.out + "/vcf", mode: 'copy'
+    publishDir params.out + "/SM", mode: 'copy'
 
     input:
        val vcf_set from union_vcf_set.toSortedList()
 
     output:
-       file("union_vcfs.txt") into union_vcfs
+       file("SM_union_vcfs.txt") into union_vcfs
 
     script:
         print vcf_set
 
     """
-        echo ${vcf_set.join(" ")} | tr ' ' '\\n' > union_vcfs.txt
+        echo ${vcf_set.join(" ")} | tr ' ' '\\n' > SM_union_vcfs.txt
     """
 }
 
@@ -724,7 +724,7 @@ process stat_tsv {
 
 process output_hmm {
 
-    publishDir params.out + "/vcf", mode: 'copy'
+    publishDir params.out + "/hmm", mode: 'copy'
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf
@@ -740,7 +740,7 @@ process output_hmm {
 
 process output_hmm_fill {
 
-    publishDir params.out + "/vcf", mode: 'copy'
+    publishDir params.out + "/hmm", mode: 'copy'
 
     input:
         set file("NIL.filter.vcf.gz"), file("NIL.filter.vcf.gz.csi") from hmm_vcf_clean
@@ -757,7 +757,7 @@ process output_hmm_fill {
 
 process output_hmm_vcf {
 
-    publishDir params.out + "/vcf", mode: 'copy'
+    publishDir params.out + "/hmm", mode: 'copy'
 
     input:
         set file("NIL.vcf.gz"), file("NIL.vcf.gz.csi") from hmm_vcf_out
@@ -825,10 +825,10 @@ process output_tsv {
         set file("NIL.hmm.vcf.gz"), file("NIL.hmm.vcf.gz.csi") from gt_hmm_tsv
 
     output:
-        file("gt_hmm.tsv")
+        file("gt_hmm_genotypes.tsv")
 
     """
-        cat <(echo -e "CHROM\tPOS\tSAMPLE\tGT\tGT_ORIG\tAD") <(bcftools query -f '[%CHROM\t%POS\t%SAMPLE\t%GT\t%GT_ORIG\t%AD\n]' NIL.hmm.vcf.gz | sed 's/0\\/0/0/g' | sed 's/1\\/1/1/g') > gt_hmm.tsv
+        cat <(echo -e "CHROM\tPOS\tSAMPLE\tGT\tGT_ORIG\tAD") <(bcftools query -f '[%CHROM\t%POS\t%SAMPLE\t%GT\t%GT_ORIG\t%AD\n]' NIL.hmm.vcf.gz | sed 's/0\\/0/0/g' | sed 's/1\\/1/1/g') > gt_hmm_genotypes.tsv
     """
 
 }
