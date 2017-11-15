@@ -4,7 +4,11 @@ gt_dict = list("0/0" = 0, "1/1" = 1)
 
 df <- readr::read_tsv("rg_gt.tsv", col_names = c("CHROM", "POS", "gt", "SM", "fq")) %>%
       tidyr::unite("CHROM_POS", CHROM, POS, sep = "_") %>%
-      dplyr::filter(gt %in% c("0/0", "1/1")) %>%
+      dplyr::filter(gt %in% c("0/0", "1/1")) 
+
+
+if(nrow(df) > 0) {
+df <- %>%
       dplyr::rowwise() %>%
       dplyr::mutate(gt = gt_dict[gt][[1]]) %>% 
       dplyr::ungroup()
@@ -39,4 +43,5 @@ df <- dplyr::left_join(alt_only, total) %>%
   dplyr::mutate(concordance = concordant_sites/total_sites, SM = SM)
 
 readr::write_tsv(df, "out.tsv", col_names = F)
+}
 }
