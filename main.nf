@@ -213,8 +213,6 @@ process merge_kmer {
 
 process perform_alignment {
 
-    echo true
-
     cpus params.cores
 
     tag { ID }
