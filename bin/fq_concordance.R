@@ -8,7 +8,7 @@ df <- readr::read_tsv("rg_gt.tsv", col_names = c("CHROM", "POS", "gt", "SM", "fq
 
 
 if(nrow(df) > 0) {
-df <- %>%
+df <- df %>%
       dplyr::rowwise() %>%
       dplyr::mutate(gt = gt_dict[gt][[1]]) %>% 
       dplyr::ungroup()
