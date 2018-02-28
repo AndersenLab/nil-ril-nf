@@ -8,7 +8,7 @@ nextflow -v >/dev/null 2>&1 || { echo >&2 "I require nextflow, but it's not inst
 run_name="Test NIL-nf: "$(date +%s)
 
 # Download reference genome
-curl https://storage.googleapis.com/andersen/genome/c_elegans/WS245/WS245.tar.gz > WS245.tar.gz
+curl https://storage.googleapis.com/elegansvariation.org/genome/WS245/WS245.tar.gz > WS245.tar.gz
 tar -xvzf WS245.tar.gz
 
 cmd="""nextflow run main.nf  \
