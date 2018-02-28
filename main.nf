@@ -16,6 +16,7 @@ params.out = "NIL-${params.A}-${params.B}-${date}"
 params.reference = "(required)"
 params.tmpdir = "/tmp"
 params.relative = true
+params.email = ""
 
 
 if (params.debug == true) {
@@ -69,6 +70,7 @@ param_summary = '''
     --reference          Reference Genome               ${reference_handle}
     --vcf                VCF to fetch parents from      ${params.vcf}
     --tmpdir             A temporary directory          ${params.tmpdir}
+    --email              Email to be sent results    ${params.email}
 
     HELP: http://andersenlab.org/dry-guide/pipeline-nil/
 """
@@ -838,6 +840,7 @@ process output_tsv {
 }
 
 
+
 workflow.onComplete {
 
     summary = """
@@ -856,10 +859,16 @@ workflow.onComplete {
 
     println summary
 
+    // mail summary
+    ['mail', '-s', 'nil-ril-nf', params.email].execute() << summary
+
     def outlog = new File("${params.out}/log.txt")
     outlog.newWriter().withWriter {
         outlog << param_summary
         outlog << summary
     }
 
+
+
 }
+
