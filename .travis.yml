@@ -6,7 +6,7 @@ jdk: openjdk8
 
 cache:
   directories: 
-    - reference
+    - WS245
 
 services:
   - docker
@@ -21,3 +21,6 @@ install:
 
   
 script: "./test.sh"
+
+notifications:
+  email: true
