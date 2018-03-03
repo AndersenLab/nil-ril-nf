@@ -179,7 +179,7 @@ process kmer_counting {
     tag { ID }
 
     input:
-        set SM, ID, LB, fq1, fq2, seq_folder from fqs_kmer
+        set SM, ID, LB, fq1, fq2 from fqs_kmer
     output:
         file("${ID}.kmer.tsv") into kmer_set
 
