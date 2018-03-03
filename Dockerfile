@@ -3,7 +3,7 @@ FROM linuxbrew/linuxbrew:1.3.1
 USER root 
 # Install latest version of R
 
-RUN apt-get update \ 
+RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ed \
         less \
