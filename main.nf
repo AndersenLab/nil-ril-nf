@@ -70,7 +70,7 @@ param_summary = '''
     --reference          Reference Genome               ${reference_handle}
     --vcf                VCF to fetch parents from      ${params.vcf}
     --tmpdir             A temporary directory          ${params.tmpdir}
-    --email              Email to be sent results    ${params.email}
+    --email              Email to be sent results       ${params.email}
 
     HELP: http://andersenlab.org/dry-guide/pipeline-nil/
 """
