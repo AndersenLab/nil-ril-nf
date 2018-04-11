@@ -12,6 +12,7 @@ params.A = 'N2'
 params.B = 'CB4856'
 params.cA = "#0080FF"
 params.cB = "#FF8000"
+params.transition = 1e-12
 params.out = "NIL-${params.A}-${params.B}-${date}"
 params.reference = "(required)"
 params.tmpdir = "/tmp"
@@ -69,6 +70,7 @@ param_summary = '''
     --relative           use relative fastq prefix      ${params.relative}
     --reference          Reference Genome               ${reference_handle}
     --vcf                VCF to fetch parents from      ${params.vcf}
+    --transition         Transition Prob                ${params.transition}
     --tmpdir             A temporary directory          ${params.tmpdir}
     --email              Email to be sent results       ${params.email}
 
@@ -739,7 +741,7 @@ process output_hmm {
         file("gt_hmm.tsv")
 
     """
-        vk hmm --A=${params.A} --B=${params.B} NIL.filter.vcf.gz > gt_hmm.tsv
+        vk hmm --transition=${params.transition} --A=${params.A} --B=${params.B} NIL.filter.vcf.gz > gt_hmm.tsv
     """
 
 }
@@ -755,7 +757,7 @@ process output_hmm_fill {
         file("gt_hmm_fill.tsv") into gt_hmm_fill
 
     """
-        vk hmm --transition=1e-12 --infill --endfill --A=${params.A} --B=${params.B} NIL.filter.vcf.gz > gt_hmm_fill.tsv
+        vk hmm --transition=${params.transition} --infill --endfill --A=${params.A} --B=${params.B} NIL.filter.vcf.gz > gt_hmm_fill.tsv
     """
 
 }
@@ -772,7 +774,7 @@ process output_hmm_vcf {
         set file("NIL.hmm.vcf.gz"), file("NIL.hmm.vcf.gz.csi") into gt_hmm
 
     """
-        vk hmm --transition=1e-12 --vcf-out --A=${params.A} --B=${params.B} NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
+        vk hmm --transition=${params.transition} --vcf-out --A=${params.A} --B=${params.B} NIL.vcf.gz | bcftools view -O z > NIL.hmm.vcf.gz
         bcftools index NIL.hmm.vcf.gz
     """
 
