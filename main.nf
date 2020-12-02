@@ -362,7 +362,7 @@ fq_concordance_sitelist = fq_concordance_bams.combine(site_list_fq_concordance)
 process fq_concordance {
 
     cpus params.cores
-
+    echo true
     tag { SM }
 
     input:

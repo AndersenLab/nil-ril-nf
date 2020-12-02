@@ -1,5 +1,6 @@
 library(tidyverse)
 
+
 gt_dict = list("0/0" = 0, "1/1" = 1)
 
 df <- readr::read_tsv("rg_gt.tsv", col_names = c("CHROM", "POS", "gt", "SM", "fq")) %>%
