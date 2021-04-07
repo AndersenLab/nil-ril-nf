@@ -25,10 +25,21 @@ params.cA = "#0080FF"
 params.cB = "#FF8000"
 params.transition = 1e-12
 //params.out = "NIL-${params.A}-${params.B}-${date}"
-params.reference = "(required)"
+//params.reference = "(required)"
 params.tmpdir = "/tmp"
 params.relative = true
 params.email = ""
+params.species = "c_elegans"
+
+// default vcf and reference for species or specify your own
+// add for c_briggsae and c_tropicalis once we have vcf and genome for both
+if(params.species == "c_elegans") {
+    params.reference = "/projects/b1059/data/genomes/c_elegans/WS276/c_elegans.PRJNA13758.WS276.genomc.fa.gz"
+    params.vcf = "/projects/b1059/analysis/WI-20210121/vcf/WI.20210121.hard-filter.vcf.gz"
+} else {
+    params.vcf = "(required)"
+    params.reference = "(required)"
+}
 
 // debug
 if (params.debug == true) {
@@ -66,8 +77,9 @@ if (params.relative) {
 // checks
 if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs == "(required)") {
     println """
-    The Set/Default column shows what the value is currently set to
-    or would be set to if it is not specified (it's default).
+    
+    Error: VCF, Reference, and FQ sheet are required for analysis. Please check parameters.
+
     """
     System.exit(1)
 } 
@@ -75,7 +87,7 @@ if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs
 if (!file("${params.vcf}").exists()) {
     println """
 
-    Error: VCF Does not exist
+    Error: VCF Does not exist.
 
     """
     System.exit(1)
@@ -84,7 +96,7 @@ if (!file("${params.vcf}").exists()) {
 if (!reference.exists()) {
     println """
 
-    Error: Reference does not exist
+    Error: Reference does not exist.
 
     """
     System.exit(1)
@@ -94,7 +106,7 @@ if (!reference.exists()) {
 if (!fq_file.exists()) {
     println """
 
-    Error: fastq sheet does not exist
+    Error: fastq sheet does not exist.
 
     """
     System.exit(1)
@@ -116,6 +128,7 @@ param_summary = '''
     ==========           ===========                    =======
     
     --debug              Set to 'true' to test          ${params.debug}
+    --species            Choose species for analysis    ${params.species}
     --cores              Number of cores                ${params.cores}
     --A                  Parent A                       ${params.A}
     --B                  Parent B                       ${params.B}
