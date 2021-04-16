@@ -29,13 +29,13 @@ params.transition = 1e-12
 params.tmpdir = "/tmp"
 params.relative = true
 params.email = ""
-params.species = "c_elegans"
+params.species = null
 
 // default vcf and reference for species or specify your own
 // add for c_briggsae and c_tropicalis once we have vcf and genome for both
 if(params.species == "c_elegans") {
-    params.reference = "/projects/b1059/data/genomes/c_elegans/WS276/c_elegans.PRJNA13758.WS276.genomc.fa.gz"
-    params.vcf = "/projects/b1059/analysis/WI-20210121/vcf/WI.20210121.hard-filter.vcf.gz"
+    params.reference = "/projects/b1059/data/genomes/c_elegans/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa.gz"
+    params.vcf = "/projects/b1059/analysis/WI-20210121/isotype_only/WI.20210121.hard-filter.isotype.vcf.gz"
 } else {
     params.vcf = "(required)"
     params.reference = "(required)"
@@ -96,7 +96,7 @@ if (!file("${params.vcf}").exists()) {
 if (!reference.exists()) {
     println """
 
-    Error: Reference does not exist.
+    Error: Reference (${params.reference}) does not exist.
 
     """
     System.exit(1)
@@ -492,6 +492,10 @@ process merge_bam {
     storeDir params.out + "/bam"
 
     cpus params.cores
+
+    memory { 8.GB * task.attempt }
+
+    errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
 
     tag { SM }
 
