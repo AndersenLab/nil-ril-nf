@@ -15,6 +15,13 @@
 
  nextflow.preview.dsl=2
 
+ // check to make sure singularity is loaded for docker on quest
+  if(params.quest) {
+    println "Need to load `singularity` for docker container"
+    println "On QUEST, you can use `module load singularity`"
+    exit 1
+}
+
 
 date = new Date().format( 'yyyyMMdd' )
 params.debug = false
