@@ -15,69 +15,29 @@
 
  nextflow.preview.dsl=2
 
- // check to make sure singularity is loaded for docker on quest
-  if(params.quest) {
-    println "Need to load `singularity` for docker container"
-    println "On QUEST, you can use `module load singularity`"
-    exit 1
-}
-
 
 date = new Date().format( 'yyyyMMdd' )
 params.debug = false
 params.cores = 4
-//params.A = 'N2' // these are now defined in the config file
-//params.B = 'CB4856'
 params.cA = "#0080FF"
 params.cB = "#FF8000"
 params.transition = 1e-12
-//params.out = "NIL-${params.A}-${params.B}-${date}"
-//params.reference = "(required)"
 params.tmpdir = "/tmp"
 params.relative = true
-params.email = ""
-//params.species = null
-
-// default vcf and reference for species or specify your own
-// add for c_briggsae and c_tropicalis once we have vcf and genome for both
-//if(params.species == "c_elegans") {
-//    params.reference = "/projects/b1059/data/genomes/c_elegans/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa.gz"
-//    params.vcf = "/projects/b1059/analysis/WI-20210121/isotype_only/WI.20210121.hard-filter.isotype.vcf.gz"
-//} else {
-//    params.vcf = "(required)"
-//    params.reference = "(required)"
-//}
 
 // debug
 if (params.debug == true) {
 println """
-
     ***Using debug mode***
-
 """
 params.fqs = "${workflow.projectDir}/test_data/fq_sheet.tsv"
 params.vcf = "${workflow.projectDir}/test_data/N2_CB.simple.vcf.gz"
 params.reference = "/projects/b1059/data/c_elegans/genomes/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa"
-
 } else {
     params.fqs = "(required)"
     params.vcf = "(required)"
     params.reference = "(required)"
 }
-
-// checks
-if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs == "(required)") {
-    println """
-    
-    Error: VCF, Reference, and FQ sheet are required for analysis. Please check parameters.
-
-    Reference: ${params.reference}
-    VCF: ${params.vcf}
-    FQs: ${params.fqs}
-
-    """
-    System.exit(1)
-} 
 
 // Define VCF
 parental_vcf=file("${params.vcf}")
@@ -98,22 +58,30 @@ if (params.relative) {
              .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${fq1}"), file("${fq2}")] }
 }
 
-
-// Check that files exist
-if (!file("${params.vcf}").exists()) {
+// checks
+if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs == "(required)") {
     println """
 
-    Error: VCF Does not exist.
+    Error: VCF, Reference, and FQ sheet are required for analysis. Please check parameters.
 
+    VCF: ${params.vcf}
+    Reference: ${params.reference}
+    FQs: ${params.fqs}
+
+    """
+    System.exit(1)
+} 
+
+if (!file("${params.vcf}").exists()) {
+    println """
+    Error: VCF ${params.vcf} Does not exist.
     """
     System.exit(1)
 }
 
 if (!reference.exists()) {
     println """
-
-    Error: Reference (${params.reference}) does not exist.
-
+    Error: Reference ${params.reference} does not exist.
     """
     System.exit(1)
 } 
@@ -121,15 +89,12 @@ if (!reference.exists()) {
 
 if (!fq_file.exists()) {
     println """
-
-    Error: fastq sheet does not exist.
-
+    Error: fastq sheet ${params.fqs} does not exist.
     """
     System.exit(1)
 }
 
 param_summary = '''
-
 
 ███╗   ██╗██╗██╗      ██████╗ ██╗██╗      ███╗   ██╗███████╗
 ████╗  ██║██║██║      ██╔══██╗██║██║      ████╗  ██║██╔════╝
@@ -138,13 +103,11 @@ param_summary = '''
 ██║ ╚████║██║███████╗ ██║  ██║██║███████╗ ██║ ╚████║██║     
 ╚═╝  ╚═══╝╚═╝╚══════╝ ╚═╝  ╚═╝╚═╝╚══════╝ ╚═╝  ╚═══╝╚═╝     
                                                             
-
 ''' + """
     parameters           description                    Set/Default
     ==========           ===========                    =======
     
     --debug              Set to 'true' to test          ${params.debug}
-    --species            Choose species for analysis    ${params.species}
     --cores              Number of cores                ${params.cores}
     --A                  Parent A                       ${params.A}
     --B                  Parent B                       ${params.B}
@@ -158,7 +121,6 @@ param_summary = '''
     --transition         Transition Prob                ${params.transition}
     --tmpdir             A temporary directory          ${params.tmpdir}
     --email              Email to be sent results       ${params.email}
-
     HELP: http://andersenlab.org/dry-guide/pipeline-nil/
 """
 
@@ -177,8 +139,7 @@ workflow {
 
     // alignment
     fqs | perform_alignment
-    perform_alignment.out.sample_aligned_bams.groupTuple().view() | merge_bam
-    /*
+    perform_alignment.out.sample_aligned_bams.groupTuple() | merge_bam
     merge_bam.out.merged_SM | SM_coverage
     SM_coverage.out.toSortedList() | SM_coverage_merge
     perform_alignment.out.aligned_bams
@@ -225,7 +186,6 @@ workflow {
         .combine(combine_idx_stats.out)
         .combine(SM_coverage_merge.out.SM_coverage_plot)
         .combine(format_duplicates.out) | generate_issue_plots 
-        */
 
 
 }
@@ -254,7 +214,6 @@ process generate_sitelist {
     awk '\$0 ~ "^#" || (\$0 ~ "0/0" && \$0 ~ "1/1") { print }' | \\
     bcftools filter -O z --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' > ${params.A}.${params.B}.parental.vcf.gz
     bcftools index ${params.A}.${params.B}.parental.vcf.gz
-
     # Generate Sitelist
     bcftools query --include 'FORMAT/GT == "0/0" || FORMAT/GT == "1/1"' -f "%CHROM\\t%POS\\t%REF,%ALT\\n" ${params.A}.${params.B}.parental.vcf.gz > ${params.A}.${params.B}.sitelist.tsv
     bgzip ${params.A}.${params.B}.sitelist.tsv
@@ -328,7 +287,6 @@ process perform_alignment {
         sambamba view --nthreads=${task.cpus} --show-progress --sam-input --format=bam --with-header /dev/stdin | \\
         sambamba sort --nthreads=${task.cpus} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin 2>&1
         sambamba index --nthreads=${task.cpus} ${ID}.bam
-
         if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
             exit 1;
         fi
@@ -438,7 +396,6 @@ process fq_coverage_merge {
     """
         echo -e 'bam\\tcontig\\tstart\\tend\\tproperty\\tvalue' > fq_coverage.full.tsv
         cat ${fq_set.join(" ")} >> fq_coverage.full.tsv
-
         cat <(echo -e 'fq\\tcoverage') <( cat fq_coverage.full.tsv | grep 'genome' | grep 'depth_of_coverage' | cut -f 1,6) > fq_coverage.tsv
     """
 }
@@ -467,9 +424,7 @@ process fq_concordance {
         samtools split -f '%!.%.' input.bam
         # DO NOT INDEX ORIGINAL BAM; ELIMINATES CACHE!
         bam_list="`ls -1 *.bam | grep -v 'input.bam'`"
-
         ls -1 *.bam | grep -v 'input.bam' | xargs --verbose -I {} -P ${task.cpus} sh -c "samtools index {}"
-
         # Call a union set of variants
         for rg in \$rg_list; do
             echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${task.cpus} sh -c "samtools mpileup --redo-BAQ -r {} --BCF --output-tags DP,AD,ADF,ADR,SP --fasta-ref ${reference_handle} \${rg}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels --multiallelic-caller -O z > {}.\${rg}.vcf.gz"
@@ -481,7 +436,6 @@ process fq_concordance {
         done;
         cat *.rg_gt.tsv > rg_gt.tsv
         touch out.tsv
-
         Rscript --vanilla ${workflow.projectDir}/bin/fq_concordance.R
     """
 }
@@ -509,11 +463,7 @@ process merge_bam {
 
     storeDir params.out + "/bam"
 
-    cpus 4
-
-    memory { 8.GB * task.attempt }
-
-    errorStrategy { task.exitStatus == 134 ? 'retry' : 'terminate' }
+    cpus params.cores
 
     tag { SM }
 
@@ -526,7 +476,6 @@ process merge_bam {
 
     """
     count=`echo ${bam.join(" ")} | tr ' ' '\\n' | wc -l`
-
     if [ "\${count}" -eq "1" ]; then
         ln -s ${bam[0]} ${SM}.merged.bam
         ln -s ${bam[0]}.bai ${SM}.merged.bam.bai
@@ -534,7 +483,6 @@ process merge_bam {
         sambamba merge --nthreads=${task.cpus} --show-progress ${SM}.merged.bam ${bam.join(" ")}
         sambamba index --nthreads=${task.cpus} ${SM}.merged.bam
     fi
-
     picard MarkDuplicates I=${SM}.merged.bam O=${SM}.bam M=${SM}.duplicates.txt VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=false
     sambamba index --nthreads=${task.cpus} ${SM}.bam
     """
@@ -669,7 +617,6 @@ process SM_coverage_merge {
     """
         echo -e 'SM\\tcontig\\tstart\\tend\\tproperty\\tvalue' > SM_coverage.full.tsv
         cat ${sm_set.join(" ")} >> SM_coverage.full.tsv
-
         # Generate condensed version
         cat <(echo -e 'strain\\tcoverage') <(cat SM_coverage.full.tsv | grep 'genome' | grep 'depth_of_coverage' | cut -f 1,6) > SM_coverage.tsv
     """
@@ -706,7 +653,6 @@ process call_variants_union {
         contigs="`samtools view -H ${SM}.bam | grep -Po 'SN:([^\\W]+)' | cut -c 4-40`"
         echo \${contigs} | tr ' ' '\\n' | xargs --verbose -I {} -P ${task.cpus} sh -c "samtools mpileup --redo-BAQ --region {} --BCF --output-tags DP,AD,ADF,ADR,INFO/AD,SP --fasta-ref ${reference_handle} ${SM}.bam | bcftools call -T sitelist.tsv.gz --skip-variants indels  --multiallelic-caller -O z  -  > ${SM}.{}.union.vcf.gz"
         order=`echo \${contigs} | tr ' ' '\\n' | awk '{ print "${SM}." \$1 ".union.vcf.gz" }'`
-
         # Output variant sites
         bcftools concat \${order} -O v | \\
         vk geno het-polarization - | \\
@@ -770,7 +716,6 @@ process concatenate_union_vcf {
         vk geno het-polarization - | \\
         bcftools view -O z > merged.raw.vcf.gz
         bcftools index merged.raw.vcf.gz
-
         # Add parental strains
         bcftools merge -O z ${params.A}.${params.B}.parental.vcf.gz merged.raw.vcf.gz > NIL.filtered.vcf.gz
         bcftools index NIL.filtered.vcf.gz
@@ -906,7 +851,6 @@ process output_tsv {
 workflow.onComplete {
 
     summary = """
-
     Pipeline execution summary
     ---------------------------
     Completed at: ${workflow.complete}
@@ -916,7 +860,6 @@ workflow.onComplete {
     exit status : ${workflow.exitStatus}
     Error report: ${workflow.errorReport ?: '-'}
     Git info: $workflow.repository - $workflow.revision [$workflow.commitId]
-
     Parameters
     ----------
     debug              Set to 'true' to test          ${params.debug}
@@ -931,13 +874,12 @@ workflow.onComplete {
     reference          Reference Genome               ${reference_handle}
     vcf                VCF to fetch parents from      ${params.vcf}
     transition         Transition Prob                ${params.transition}
-
     """
 
     println summary
 
     // mail summary
-    ['mail', '-s', 'nil-ril-nf', params.email].execute() << summary
+    //['mail', '-s', 'nil-ril-nf', params.email].execute() << summary
 
     def outlog = new File("${params.out}/log.txt")
     outlog.newWriter().withWriter {
@@ -948,4 +890,3 @@ workflow.onComplete {
 
 
 }
-
