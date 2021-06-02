@@ -29,17 +29,17 @@ params.transition = 1e-12
 params.tmpdir = "/tmp"
 params.relative = true
 params.email = ""
-params.species = null
+//params.species = null
 
 // default vcf and reference for species or specify your own
 // add for c_briggsae and c_tropicalis once we have vcf and genome for both
-if(params.species == "c_elegans") {
-    params.reference = "/projects/b1059/data/genomes/c_elegans/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa.gz"
-    params.vcf = "/projects/b1059/analysis/WI-20210121/isotype_only/WI.20210121.hard-filter.isotype.vcf.gz"
-} else {
-    params.vcf = "(required)"
-    params.reference = "(required)"
-}
+//if(params.species == "c_elegans") {
+//    params.reference = "/projects/b1059/data/genomes/c_elegans/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa.gz"
+//    params.vcf = "/projects/b1059/analysis/WI-20210121/isotype_only/WI.20210121.hard-filter.isotype.vcf.gz"
+//} else {
+//    params.vcf = "(required)"
+//    params.reference = "(required)"
+//}
 
 // debug
 if (params.debug == true) {
@@ -50,10 +50,27 @@ println """
 """
 params.fqs = "${workflow.projectDir}/test_data/fq_sheet.tsv"
 params.vcf = "${workflow.projectDir}/test_data/N2_CB.simple.vcf.gz"
+params.reference = "/projects/b1059/data/c_elegans/genomes/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa"
+
 } else {
     params.fqs = "(required)"
     params.vcf = "(required)"
+    params.reference = "(required)"
 }
+
+// checks
+if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs == "(required)") {
+    println """
+    
+    Error: VCF, Reference, and FQ sheet are required for analysis. Please check parameters.
+
+    Reference: ${params.reference}
+    VCF: ${params.vcf}
+    FQs: ${params.fqs}
+
+    """
+    System.exit(1)
+} 
 
 // Define VCF
 parental_vcf=file("${params.vcf}")
@@ -74,16 +91,8 @@ if (params.relative) {
              .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${fq1}"), file("${fq2}")] }
 }
 
-// checks
-if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs == "(required)") {
-    println """
-    
-    Error: VCF, Reference, and FQ sheet are required for analysis. Please check parameters.
 
-    """
-    System.exit(1)
-} 
-
+// Check that files exist
 if (!file("${params.vcf}").exists()) {
     println """
 
@@ -161,7 +170,8 @@ workflow {
 
     // alignment
     fqs | perform_alignment
-    perform_alignment.out.sample_aligned_bams.groupTuple() | merge_bam
+    perform_alignment.out.sample_aligned_bams.groupTuple().view() | merge_bam
+    /*
     merge_bam.out.merged_SM | SM_coverage
     SM_coverage.out.toSortedList() | SM_coverage_merge
     perform_alignment.out.aligned_bams
@@ -208,6 +218,7 @@ workflow {
         .combine(combine_idx_stats.out)
         .combine(SM_coverage_merge.out.SM_coverage_plot)
         .combine(format_duplicates.out) | generate_issue_plots 
+        */
 
 
 }
@@ -491,11 +502,11 @@ process merge_bam {
 
     storeDir params.out + "/bam"
 
-    cpus params.cores
+    cpus 4
 
     memory { 8.GB * task.attempt }
 
-    errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
+    errorStrategy { task.exitStatus == 134 ? 'retry' : 'terminate' }
 
     tag { SM }
 
