@@ -96,3 +96,7 @@ results/
 work/
 .nextflow/
 NIL-*/
+c.b_rils_crossobj/*
+fq_sheet_20180409.tsv
+report*
+make_crossobj.sh

@@ -1,5 +1,5 @@
+#!/usr/bin/env Rscript --vanilla
 library(tidyverse)
-library(cowplot)
 
 fq_coverage <- readr::read_tsv("fq_coverage.tsv")
 SM_coverage <- readr::read_tsv("SM_coverage.tsv")
@@ -38,7 +38,7 @@ cowplot::plot_grid(a1, a2, nrow = 2)
 
 
 ggsave("coverage_comparison.png", width = 8, height = 10)
-ggsave("coverage_comparison.svg", width = 8, height = 10)
+# ggsave("coverage_comparison.svg", width = 8, height = 10)
 
 
 un <- readr::read_tsv("SM_bam_idxstats.tsv") %>%
@@ -52,7 +52,7 @@ ggplot(un) +
   pub_theme
 
 ggsave("unmapped_reads.png")
-ggsave("unmapped_reads.svg")
+# ggsave("unmapped_reads.svg")
 
 
 dup <- readr::read_tsv("bam_duplicates.tsv")
