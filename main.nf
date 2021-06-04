@@ -33,12 +33,26 @@ println """
 """
 params.fqs = "${workflow.projectDir}/test_data/fq_sheet.tsv"
 params.vcf = "${workflow.projectDir}/test_data/N2_CB.simple.vcf.gz"
-params.reference = "/projects/b1059/data/c_elegans/genomes/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa"
+params.reference = "/projects/b1059/data/c_elegans/genomes/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa.gz"
 } else {
     params.fqs = "(required)"
     params.vcf = "(required)"
     params.reference = "(required)"
 }
+
+// checks
+if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs == "(required)") {
+    println """
+
+    Error: VCF, Reference, and FQ sheet are required for analysis. Please check parameters.
+
+    VCF: ${params.vcf}
+    Reference: ${params.reference}
+    FQs: ${params.fqs}
+
+    """
+    System.exit(1)
+} 
 
 // Define VCF
 parental_vcf=file("${params.vcf}")
@@ -59,19 +73,6 @@ if (params.relative) {
              .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${fq1}"), file("${fq2}")] }
 }
 
-// checks
-if (params.vcf == "(required)" || params.reference == "(required)" || params.fqs == "(required)") {
-    println """
-
-    Error: VCF, Reference, and FQ sheet are required for analysis. Please check parameters.
-
-    VCF: ${params.vcf}
-    Reference: ${params.reference}
-    FQs: ${params.fqs}
-
-    """
-    System.exit(1)
-} 
 
 if (!file("${params.vcf}").exists()) {
     println """
@@ -471,9 +472,13 @@ process merge_bam {
 
     storeDir params.out + "/bam"
 
+    tag { SM }
+
     cpus params.cores
 
-    tag { SM }
+    memory { 16.GB * task.attempt }
+
+    errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
 
     input:
         tuple SM, bam 
