@@ -124,6 +124,8 @@ param_summary = '''
     --tmpdir             A temporary directory          ${params.tmpdir}
     --email              Email to be sent results       ${params.email}
     HELP: http://andersenlab.org/dry-guide/pipeline-nil/
+  ---------------------------------------------------------------------------
+    Git info: $workflow.repository - $workflow.revision [$workflow.commitId]
 """
 
 println param_summary
