@@ -1,5 +1,0 @@
-docker.enabled = true
-process.$plot_hmm.container = "andersenlab/docker-rstudio"
-params {
-    reference = "/directory/to/reference/WS245.fa.gz"
-}
