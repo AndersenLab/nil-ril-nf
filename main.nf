@@ -6,25 +6,17 @@
  *  
  */
 
-// update to nextflow 20+ DSL2
- if( !nextflow.version.matches('20.0+') ) {
-    println "This workflow requires Nextflow version 20.0 or greater -- You are running version $nextflow.version"
-    println "On QUEST, you can use `module load python/anaconda3.6; source activate /projects/b1059/software/conda_envs/nf20_env`"
+ if( !nextflow.version.matches('23.0+') ) {
+    println "This workflow requires Nextflow version 23.0 or greater -- You are running version $nextflow.version"
+    println "On Rockfish, you can use `module load python/anaconda; source activate /data/eande106/software/conda_envs/nf23_env`"
     //exit 1
 }
 
- nextflow.preview.dsl=2
+ nextflow.enable.dsl=2
 
 
+params.out = "NIL-${params.A}-${params.B}-${day}"
 date = new Date().format( 'yyyyMMdd' )
-params.debug = false
-params.cores = 4
-params.cA = "#0080FF"
-params.cB = "#FF8000"
-params.transition = 1e-12
-params.tmpdir = "/tmp"
-params.relative = true
-params.cross_obj = false
 
 // debug
 if (params.debug == true) {
@@ -33,7 +25,7 @@ println """
 """
 params.fqs = "${workflow.projectDir}/test_data/fq_sheet.tsv"
 params.vcf = "${workflow.projectDir}/test_data/N2_CB.simple.vcf.gz"
-params.reference = "/projects/b1059/data/c_elegans/genomes/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa.gz"
+params.reference = "${params.dataDir}/c_elegans/genomes/PRJNA13758/${params.genome}/c_elegans.PRJNA13758.WS276.genome.fa.gz"
 } else {
     params.fqs = "(required)"
     params.vcf = "(required)"
@@ -66,10 +58,10 @@ if (params.reference != "(required)") {
 File fq_file = new File("${params.fqs}")
 if (params.relative) {
     fq_file_prefix = fq_file.getParentFile().getAbsolutePath();
-    fqs = Channel.from(fq_file.collect { it.tokenize( '\t' ) })
+    fqs = Channel.of(fq_file.collect { it.tokenize( '\t' ) })
                  .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${fq_file_prefix}/${fq1}"), file("${fq_file_prefix}/${fq2}")] }
 } else {
-    fqs = Channel.from(fq_file.collect { it.tokenize( '\t' ) })
+    fqs = Channel.of(fq_file.collect { it.tokenize( '\t' ) })
              .map { SM, ID, LB, fq1, fq2 -> [SM, ID, LB, file("${fq1}"), file("${fq2}")] }
 }
 
@@ -160,7 +152,7 @@ workflow {
     merge_bam.out.merged_SM.combine(generate_sitelist.out.site_list) | call_variants_union
     call_variants_union.out.union_vcf_set.toSortedList() | generate_union_vcf_list
     generate_union_vcf_list.out
-        .spread(Channel.from(["I", "II", "III", "IV", "V", "X", "MtDNA"])) | merge_union_vcf_chromosome
+        .spread(Channel.of(["I", "II", "III", "IV", "V", "X", "MtDNA"])) | merge_union_vcf_chromosome
     merge_union_vcf_chromosome.out
         .groupTuple() 
         .join(generate_sitelist.out.parental_vcf_only) | concatenate_union_vcf
@@ -239,8 +231,7 @@ process generate_sitelist {
 process kmer_counting {
 
     container null
-
-    cpus params.cores
+    executor "local"
 
     tag { ID }
 
@@ -259,6 +250,9 @@ process kmer_counting {
 
 process merge_kmer {
     
+    container null
+    executor "local"
+
     publishDir params.out + "/phenotype", mode: 'copy'
 
     input:
@@ -281,8 +275,6 @@ process merge_kmer {
 */
 
 process perform_alignment {
-
-    cpus params.cores
 
     tag { ID }
 
@@ -361,6 +353,10 @@ process fq_bam_stats {
 
 process combine_bam_stats {
 
+    container null
+    executor "local"
+
+
     publishDir params.out + "/fq", mode: 'copy'
 
     input:
@@ -395,6 +391,9 @@ process fq_coverage {
 
 process fq_coverage_merge {
 
+    container null
+    executor "local"
+
     publishDir params.out + "/fq", mode: 'copy'
 
     input:
@@ -418,8 +417,6 @@ process fq_coverage_merge {
 
 process fq_concordance {
 
-    cpus params.cores
-    echo true
     tag { SM }
 
     input:
@@ -453,6 +450,9 @@ process fq_concordance {
 
 process combine_fq_concordance {
 
+    container null
+    executor "local"
+
     publishDir params.out + "/concordance", mode: 'copy', overwrite: true
 
     input:
@@ -475,10 +475,6 @@ process merge_bam {
     storeDir params.out + "/bam"
 
     tag { SM }
-
-    cpus params.cores
-
-    memory { 16.GB * task.attempt }
 
     errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
 
@@ -524,6 +520,9 @@ process idx_stats_SM {
 
 process combine_idx_stats {
 
+    container null
+    executor "local"
+
     publishDir params.out +"/SM", mode: 'copy'
 
     input:
@@ -561,6 +560,9 @@ process SM_bam_stats {
 
 process combine_SM_bam_stats {
 
+    container null
+    executor "local"
+
     publishDir params.out + "/SM", mode: 'copy'
 
     input:
@@ -578,6 +580,9 @@ process combine_SM_bam_stats {
 
 
 process format_duplicates {
+
+    container null
+    executor "local"
 
     publishDir params.out + "/duplicates", mode: 'copy'
 
@@ -618,8 +623,10 @@ process SM_coverage {
 
 process SM_coverage_merge {
 
-    publishDir params.out + "/SM", mode: 'copy'
+    container null
+    executor "local"
 
+    publishDir params.out + "/SM", mode: 'copy'
 
     input:
         val sm_set 
@@ -645,8 +652,6 @@ process SM_coverage_merge {
 process call_variants_union {
 
     echo true
-
-    cpus params.cores
 
     tag { SM }
 
@@ -679,7 +684,8 @@ process call_variants_union {
 
 process generate_union_vcf_list {
 
-    cpus 1 
+    container null
+    executor "local"
 
     publishDir params.out + "/SM", mode: 'copy'
 
