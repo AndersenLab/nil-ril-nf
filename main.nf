@@ -15,7 +15,7 @@
  nextflow.enable.dsl=2
 
 
-params.out = "NIL-${params.A}-${params.B}-${day}"
+params.out = "NIL-${params.A}-${params.B}-${params.day}"
 date = new Date().format( 'yyyyMMdd' )
 
 // debug
@@ -25,7 +25,7 @@ println """
 """
 params.fqs = "${workflow.projectDir}/test_data/fq_sheet.tsv"
 params.vcf = "${workflow.projectDir}/test_data/N2_CB.simple.vcf.gz"
-params.reference = "${params.dataDir}/c_elegans/genomes/PRJNA13758/${params.genome}/c_elegans.PRJNA13758.WS276.genome.fa.gz"
+params.reference = "${params.dataDir}/c_elegans/genomes/PRJNA13758/${params.genome}/c_elegans.PRJNA13758.${params.genome}.genome.fa.gz"
 } else {
     params.fqs = "(required)"
     params.vcf = "(required)"
@@ -102,7 +102,6 @@ param_summary = '''
     ==========           ===========                    =======
     
     --debug              Set to 'true' to test          ${params.debug}
-    --cores              Number of cores                ${params.cores}
     --A                  Parent A                       ${params.A}
     --B                  Parent B                       ${params.B}
     --cA                 Parent A color (for plots)     ${params.cA}
@@ -121,7 +120,9 @@ param_summary = '''
 """
 
 println param_summary
-
+if (params.help) {
+    exit 1
+}
 
 // Generate workflow
 workflow {
@@ -202,7 +203,7 @@ workflow {
 
 process generate_sitelist {
 
-    publishDir params.out + "/sitelist", mode: 'copy'
+    publishDir "${params.out}/sitelist", mode: 'copy'
     
     input:
         file("parental.vcf.gz")
@@ -236,7 +237,7 @@ process kmer_counting {
     tag { ID }
 
     input:
-        tuple SM, ID, LB, fq1, fq2
+        tuple val(SM), val(ID), val(LB), file(fq1), file(fq2)
     output:
         file("${ID}.kmer.tsv")
 
@@ -279,11 +280,11 @@ process perform_alignment {
     tag { ID }
 
     input:
-        tuple SM, ID, LB, fq1, fq2
+        tuple val(SM), val(ID), val(LB), file(fq1), file(fq2)
 
     output:
-        tuple SM, ID, LB, file("${ID}.bam"), file("${ID}.bam.bai"), emit: aligned_bams
-        tuple SM, file("${ID}.bam"), emit: sample_aligned_bams
+        tuple val(SM), val(ID), val(LB), file("${ID}.bam"), file("${ID}.bam.bai"), emit: aligned_bams
+        tuple val(SM), file("${ID}.bam"), emit: sample_aligned_bams
 
     """
         bwa mem -t ${task.cpus} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference_handle} ${fq1} ${fq2} | \\
@@ -305,7 +306,7 @@ process fq_idx_stats {
     tag { ID }
 
     input:
-        tuple SM, ID, LB, file("${ID}.bam"), file("${ID}.bam.bai")
+        tuple val(SM), val(ID), val(LB), file("${ID}.bam"), file("${ID}.bam.bai")
 
     output:
         file 'fq_idxstats'
@@ -341,7 +342,7 @@ process fq_bam_stats {
     tag { ID }
 
     input:
-        tuple SM, ID, LB, file("${ID}.bam"), file("${ID}.bam.bai")
+        tuple val(SM), val(ID), val(LB), file("${ID}.bam"), file("${ID}.bam.bai")
 
     output:
         file 'bam_stat'
@@ -379,7 +380,7 @@ process fq_coverage {
     tag { ID }
 
     input:
-        tuple SM, ID, LB, file("${ID}.bam"), file("${ID}.bam.bai")
+        tuple val(SM), val(ID), val(LB), file("${ID}.bam"), file("${ID}.bam.bai")
     output:
         file("${ID}.coverage.tsv")
 
@@ -470,7 +471,7 @@ process combine_fq_concordance {
 
 process merge_bam {
 
-    echo true
+    debug true
 
     storeDir params.out + "/bam"
 
@@ -479,7 +480,7 @@ process merge_bam {
     errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
 
     input:
-        tuple SM, bam 
+        tuple val(SM), file(bam) 
 
     output:
         tuple val(SM), file("${SM}.bam"), file("${SM}.bam.bai"), emit: merged_SM
@@ -509,7 +510,7 @@ process idx_stats_SM {
     tag { SM }
 
     input:
-        tuple SM, file("${SM}.bam"), file("${SM}.bam.bai")
+        tuple file(SM), file("${SM}.bam"), file("${SM}.bam.bai")
     output:
         file 'SM_bam_idxstats'
 
@@ -548,7 +549,7 @@ process SM_bam_stats {
     tag { SM }
 
     input:
-        tuple SM, file("${SM}.bam"), file("${SM}.bam.bai")
+        tuple file(SM), file("${SM}.bam"), file("${SM}.bam.bai")
 
     output:
         file 'bam_stat' 
@@ -610,7 +611,7 @@ process SM_coverage {
     tag { SM }
 
     input:
-        tuple SM, file("${SM}.bam"), file("${SM}.bam.bai") 
+        tuple val(SM), file("${SM}.bam"), file("${SM}.bam.bai") 
 
     output:
         file("${SM}.coverage.tsv")
@@ -651,14 +652,14 @@ process SM_coverage_merge {
 
 process call_variants_union {
 
-    echo true
+    debug true
 
     tag { SM }
 
     stageInMode 'copy'
 
     input:
-        tuple SM, file("${SM}.bam"), file("${SM}.bam.bai"), file('sitelist.tsv.gz'), file('sitelist.tsv.gz.tbi')
+        tuple val(SM), file("${SM}.bam"), file("${SM}.bam.bai"), file('sitelist.tsv.gz'), file('sitelist.tsv.gz.tbi')
 
     output:
         val SM, emit: union_vcf_SM

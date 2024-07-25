@@ -16,7 +16,6 @@ The `nil-ril-nf` pipeline will align, call variants, and generate datasets for N
 	==========           ===========                    =======
 
 	--debug              Set to 'true' to test          false
-	--cores              Number of cores                4
 	--A                  Parent A                       N2
 	--B                  Parent B                       CB4856
 	--cA                 Parent A color (for plots)     #0080FF
@@ -186,10 +185,6 @@ A fasta reference indexed with BWA. For example, the _C. elegans_ reference coul
 ## --A, --B (optional)
 
 Two parental strains must be provided. By default these are N2 and CB4856. The parental strains provided __must__ be present in the VCF provided. Their genotypes are pulled from that VCF and used to generate the HMM. See below for more details.
-
-## --cores (optional)
-
-The number of cores to use during alignments and variant calling. Default is 4.
 
 ## --cA, --cB (optional)
 
