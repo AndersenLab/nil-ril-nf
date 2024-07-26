@@ -4,7 +4,8 @@ library(tidyverse)
 
 gt_dict = list("0/0" = 0, "1/1" = 1)
 
-df <- readr::read_tsv("rg_gt.tsv", col_names = c("CHROM", "POS", "gt", "SM", "fq")) %>%
+args <- commandArgs(trailingOnly = TRUE)
+df <- readr::read_tsv(args[1], col_names = c("CHROM", "POS", "gt", "SM", "fq")) %>%
       tidyr::unite("CHROM_POS", CHROM, POS, sep = "_") %>%
       dplyr::filter(gt %in% c("0/0", "1/1")) 
 
@@ -44,6 +45,6 @@ total <- total %>% dplyr::tbl_df() %>%
 df <- dplyr::left_join(alt_only, total) %>%
   dplyr::mutate(concordance = concordant_sites/total_sites, SM = SM)
 
-readr::write_tsv(df, "out.tsv", col_names = F)
+readr::write_tsv(df, args[2], col_names = F)
 }
 }

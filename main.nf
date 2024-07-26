@@ -143,7 +143,8 @@ workflow {
         .combine(generate_sitelist.out.site_list) | fq_concordance
     fq_concordance.out
         .toSortedList() | combine_fq_concordance
-    perform_alignment.out.aligned_bams | fq_coverage
+    perform_alignment.out.aligned_bams | split_fq
+    split_fq.out | fq_coverage
     fq_coverage.out
         .toSortedList() | fq_coverage_merge
     merge_bam.out.duplicates_file
@@ -205,6 +206,8 @@ process generate_sitelist {
 
     publishDir "${params.out}/sitelist", mode: 'copy'
     
+    label "annotation"
+
     input:
         file("parental.vcf.gz")
 
@@ -279,6 +282,8 @@ process perform_alignment {
 
     tag { ID }
 
+    label "trim"
+
     input:
         tuple val(SM), val(ID), val(LB), file(fq1), file(fq2)
 
@@ -288,9 +293,10 @@ process perform_alignment {
 
     """
         bwa mem -t ${task.cpus} -R '@RG\\tID:${ID}\\tLB:${LB}\\tSM:${SM}' ${reference_handle} ${fq1} ${fq2} | \\
-        sambamba view --nthreads=${task.cpus} --show-progress --sam-input --format=bam --with-header /dev/stdin | \\
-        sambamba sort --nthreads=${task.cpus} --show-progress --tmpdir=${params.tmpdir} --out=${ID}.bam /dev/stdin 2>&1
-        sambamba index --nthreads=${task.cpus} ${ID}.bam
+        samtools view -hb -@ ${task.cpus} > mapped.bam
+        samtools sort -@ ${task.cpus} --show-progress --T ${params.tmpdir}/${ID} --out=${ID}.bam mapped.bam
+        rm mapped.bam
+        samtools index -@ ${task.cpus} ${ID}.bam
         if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
             exit 1;
         fi
@@ -305,6 +311,8 @@ process fq_idx_stats {
     
     tag { ID }
 
+    label "trim"
+
     input:
         tuple val(SM), val(ID), val(LB), file("${ID}.bam"), file("${ID}.bam.bai")
 
@@ -317,6 +325,9 @@ process fq_idx_stats {
 }
 
 process fq_combine_idx_stats {
+    
+    container null
+    executor "local"
 
     publishDir params.out + "/fq", mode: 'copy'
 
@@ -341,6 +352,8 @@ process fq_bam_stats {
 
     tag { ID }
 
+    label "trim"
+
     input:
         tuple val(SM), val(ID), val(LB), file("${ID}.bam"), file("${ID}.bam.bai")
 
@@ -356,7 +369,6 @@ process combine_bam_stats {
 
     container null
     executor "local"
-
 
     publishDir params.out + "/fq", mode: 'copy'
 
@@ -378,6 +390,8 @@ process combine_bam_stats {
 process fq_coverage {
 
     tag { ID }
+
+    label "bam"
 
     input:
         tuple val(SM), val(ID), val(LB), file("${ID}.bam"), file("${ID}.bam.bai")
@@ -416,7 +430,9 @@ process fq_coverage_merge {
     Call variants at the individual level for concordance
 */
 
-process fq_concordance {
+process split_fq {
+
+    label "vcfkit"
 
     tag { SM }
 
@@ -424,7 +440,7 @@ process fq_concordance {
         tuple val(SM), val(ID), val(LIB), file("input.bam"), file("input.bam.bai"), file('sitelist.tsv.gz'), file('sitelist.tsv.gz.tbi')
 
     output:
-        file('out.tsv')
+        file('rg_gt.tsv')
 
     """
         # Split bam file into individual read groups; Ignore MtDNA
@@ -444,8 +460,24 @@ process fq_concordance {
             bcftools query -f '%CHROM\\t%POS[\\t%GT\\t${SM}\\n]' | grep -v '0/1' | awk -v rg=\${rg} '{ print \$0 "\\t" rg }' > \${rg}.rg_gt.tsv
         done;
         cat *.rg_gt.tsv > rg_gt.tsv
+    """
+}
+
+process fq_concordance {
+
+    tag { SM }
+
+    label "R"
+
+    input:
+        file("rg_gt.tsv")
+
+    output:
+        file('out.tsv')
+
+    """
         touch out.tsv
-        Rscript --vanilla ${workflow.projectDir}/bin/fq_concordance.R
+        Rscript --vanilla ${workflow.projectDir}/bin/fq_concordance.R rg_gt.tsv out.tsv
     """
 }
 
@@ -471,7 +503,7 @@ process combine_fq_concordance {
 
 process merge_bam {
 
-    debug true
+    label "trim"
 
     storeDir params.out + "/bam"
 
@@ -492,11 +524,11 @@ process merge_bam {
         ln -s ${bam[0]} ${SM}.merged.bam
         ln -s ${bam[0]}.bai ${SM}.merged.bam.bai
     else
-        sambamba merge --nthreads=${task.cpus} --show-progress ${SM}.merged.bam ${bam.join(" ")}
-        sambamba index --nthreads=${task.cpus} ${SM}.merged.bam
+        samtools merge -@ ${task.cpus} -o ${SM}.merged.bam ${bam.join(" ")}
+        samtools index -@ ${task.cpus} ${SM}.merged.bam
     fi
     picard MarkDuplicates I=${SM}.merged.bam O=${SM}.bam M=${SM}.duplicates.txt VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=false
-    sambamba index --nthreads=${task.cpus} ${SM}.bam
+    samtools index -@ ${task.cpus} ${SM}.bam
     """
 }
 
@@ -507,6 +539,8 @@ process merge_bam {
 
 process idx_stats_SM {
     
+    label "trim"
+
     tag { SM }
 
     input:
@@ -545,6 +579,8 @@ process combine_idx_stats {
 */
 
 process SM_bam_stats {
+
+    label "trim"
 
     tag { SM }
 
@@ -608,6 +644,8 @@ process format_duplicates {
 */
 process SM_coverage {
 
+    label "bam"
+
     tag { SM }
 
     input:
@@ -652,7 +690,7 @@ process SM_coverage_merge {
 
 process call_variants_union {
 
-    debug true
+    label "vcfkit"
 
     tag { SM }
 
@@ -707,6 +745,8 @@ process generate_union_vcf_list {
 
 process merge_union_vcf_chromosome {
 
+    label "annotation"
+
     tag { chrom }
 
     input:
@@ -723,6 +763,8 @@ process merge_union_vcf_chromosome {
 
 
 process concatenate_union_vcf {
+
+    label "vcfkit"
 
     publishDir params.out + "/vcf", mode: 'copy'
 
@@ -746,6 +788,8 @@ process concatenate_union_vcf {
 
 process stat_tsv {
 
+    label "annotation"
+
     publishDir params.out + "/vcf", mode: 'copy'
 
     input:
@@ -761,6 +805,8 @@ process stat_tsv {
 }
 
 process output_hmm {
+
+    label "vcfkit"
 
     publishDir params.out + "/hmm", mode: 'copy'
 
@@ -778,6 +824,8 @@ process output_hmm {
 
 process output_hmm_fill {
 
+    label "vcfkit"
+
     publishDir params.out + "/hmm", mode: 'copy'
 
     input:
@@ -794,6 +842,8 @@ process output_hmm_fill {
 
 
 process output_hmm_vcf {
+
+    label "vcfkit"
 
     publishDir params.out + "/hmm", mode: 'copy'
 
@@ -813,6 +863,8 @@ process output_hmm_vcf {
 
 process plot_hmm {
 
+    label "R"
+
     publishDir params.out + "/hmm", mode: 'copy'
 
     input:
@@ -829,6 +881,8 @@ process plot_hmm {
 }
 
 process generate_issue_plots {
+
+    label "R"
 
     publishDir params.out + "/plots", mode: 'copy'
 
@@ -853,6 +907,8 @@ process generate_issue_plots {
 
 process output_tsv {
 
+    label "annotation"
+
     publishDir params.out + "/hmm", mode: 'copy'
 
     input:
@@ -869,6 +925,8 @@ process output_tsv {
 
 // generate unique breakpoint sites for RIL cross object
 process generate_cross_object {
+
+    label "vcfkit"
 
     publishDir params.out + "/cross_object", mode: 'copy'
 
@@ -936,7 +994,6 @@ workflow.onComplete {
     Parameters
     ----------
     debug              Set to 'true' to test          ${params.debug}
-    cores              Number of cores                ${params.cores}
     A                  Parent A                       ${params.A}
     B                  Parent B                       ${params.B}
     cA                 Parent A color (for plots)     ${params.cA}
