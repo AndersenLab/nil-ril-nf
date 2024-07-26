@@ -21,14 +21,12 @@ jobs:
     - name: Build and Publish
       uses: elgohr/Publish-Docker-Github-Action@master
       with:
-        context: .
+        context:
         name: andersenlab/nil-ril-nf
         username: ${{ secrets.KSE_DOCKER_USER }}
         password: ${{ secrets.KSE_DOCKER_PASS }}
         snapshot: true
         dockerfile: nil-ril.Dockerfile
         workdir: "env"
-        tags: |
-          "latest"
-          "${{ steps.current-time.formattedTime }}"
+        tags: latest,${{ steps.current-time.formattedTime }}
         cache: true
