@@ -1,4 +1,4 @@
-FROM linuxbrew/linuxbrew:1.3.1
+FROM homebrew/brew:4.3.10
 
 USER root 
 # Install latest version of R
