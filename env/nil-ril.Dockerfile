@@ -16,7 +16,7 @@ RUN apt-get update \
         libcairo2-dev \
         libsqlite-dev \
         libmariadbd-dev \
-        libmariadb-client-lgpl-dev \
+        libmariadb-dev \
         libpq-dev \
         libssh2-1-dev \
     && rm -rf /var/lib/apt/lists/*
