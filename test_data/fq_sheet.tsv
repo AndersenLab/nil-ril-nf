@@ -1,2 +1,2 @@
-A	A_ID	S16	A_1.fq.gz	A_2.fq.gz
-B	B_ID	S1	B_1.fq.gz	B_2.fq.gz
+A	A_ID	S16	test_data/A_1.fq.gz	test_data/A_2.fq.gz
+B	B_ID	S1	test_data/B_1.fq.gz	test_data/B_2.fq.gz
