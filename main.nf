@@ -139,44 +139,46 @@ workflow {
         .combine(generate_sitelist.out.site_list)
         .combine(Channel.fromPath(genome_path))
         .combine(Channel.of(genome_basename)) | split_fq
-    split_fq.out | fq_concordance
-    fq_concordance.out
-        .toSortedList() | combine_fq_concordance
-    perform_alignment.out.aligned_bams
-    split_fq.out | fq_coverage
+    // split_fq.out | fq_concordance
+    // all_fq_concord = fq_concordance.out.toSortedList()
+    // combine_fq_concordance( all_fq_concord )
+    perform_alignment.out.aligned_bams | fq_coverage
     fq_coverage.out
         .toSortedList() | fq_coverage_merge
     merge_bam.out.duplicates_file
         .toSortedList() | format_duplicates
 
     // call variants
-    // merge_bam.out.merged_SM.combine(generate_sitelist.out.site_list) | call_variants_union
-    // call_variants_union.out.union_vcf_set.toSortedList() | generate_union_vcf_list
-    // generate_union_vcf_list.out
-    //     .spread(Channel.of(["I", "II", "III", "IV", "V", "X", "MtDNA"])) | merge_union_vcf_chromosome
-    // merge_union_vcf_chromosome.out
-    //     .groupTuple() 
-    //     .join(generate_sitelist.out.parental_vcf_only) | concatenate_union_vcf
+    merge_bam.out.merged_SM
+        .combine(generate_sitelist.out.site_list)
+        .combine(Channel.fromPath(genome_path))
+        .combine(Channel.of(genome_basename)) | call_variants_union
+    call_variants_union.out.union_vcf_set.toSortedList() | generate_union_vcf_list
+    generate_union_vcf_list.out
+        .combine(Channel.of("I", "II", "III", "IV", "V", "X", "MtDNA")) | merge_union_vcf_chromosome
+    merge_union_vcf_chromosome.out
+        .groupTuple() 
+        .join(generate_sitelist.out.parental_vcf_only) | concatenate_union_vcf
 
     // // stats
-    // merge_bam.out.merged_SM | SM_bam_stats
-    // SM_bam_stats.out
-    //     .toSortedList() | combine_SM_bam_stats
-    // merge_bam.out.merged_SM | idx_stats_SM
-    // idx_stats_SM.out
-    //     .toSortedList() | combine_idx_stats
-    // concatenate_union_vcf.out | stat_tsv
-    // perform_alignment.out.aligned_bams | fq_idx_stats
-    // fq_idx_stats.out
-    //     .toSortedList() | fq_combine_idx_stats
-    // perform_alignment.out.aligned_bams | fq_bam_stats
-    // fq_bam_stats.out
-    //     .toSortedList() | combine_bam_stats
+    merge_bam.out.merged_SM | SM_bam_stats
+    SM_bam_stats.out
+        .toSortedList() | combine_SM_bam_stats
+    merge_bam.out.merged_SM | idx_stats_SM
+    idx_stats_SM.out
+        .toSortedList() | combine_idx_stats
+    concatenate_union_vcf.out | stat_tsv
+    perform_alignment.out.aligned_bams | fq_idx_stats
+    fq_idx_stats.out
+        .toSortedList() | fq_combine_idx_stats
+    perform_alignment.out.aligned_bams | fq_bam_stats
+    fq_bam_stats.out
+        .toSortedList() | combine_bam_stats
 
     // // hmm
-    // concatenate_union_vcf.out | output_hmm
-    // concatenate_union_vcf.out | output_hmm_fill | plot_hmm
-    // concatenate_union_vcf.out | output_hmm_vcf | output_tsv
+    concatenate_union_vcf.out | output_hmm
+    concatenate_union_vcf.out | output_hmm_fill | plot_hmm
+    concatenate_union_vcf.out | output_hmm_vcf | output_tsv
 
     // // plot issues
     // fq_coverage_merge.out.fq_coverage_plot
@@ -216,7 +218,7 @@ workflow.onComplete {
     out                Directory to output results    ${params.out}
     fqs                fastq file (see help)          ${params.fqs}
     relative           use relative fastq prefix      ${params.relative}
-    reference          Reference Genome               ${reference_handle}
+    reference          Reference Genome               ${params.reference}
     vcf                VCF to fetch parents from      ${params.vcf}
     transition         Transition Prob                ${params.transition}
     """

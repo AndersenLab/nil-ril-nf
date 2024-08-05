@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript --vanilla
-library(tidyverse)
+library(readr)
+library(tidyr)
+library(dplyr)
 
 
 gt_dict = list("0/0" = 0, "1/1" = 1)
