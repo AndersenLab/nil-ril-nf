@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript --vanilla
-library(tidyverse)
+library(dplyr)
+library(readr)
+library(ggplot2)
 
 args = commandArgs(trailingOnly=TRUE)
 

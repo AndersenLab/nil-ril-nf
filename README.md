@@ -74,7 +74,7 @@ The __Dockerfile__ is stored in the root of the `nil-ril-nf` github repo and is 
 
 *This command uses a test dataset*
 
-```
+```bash
 nextflow run -latest andersenlab/nil-ril-nf --debug
 ```
 
@@ -82,16 +82,24 @@ nextflow run -latest andersenlab/nil-ril-nf --debug
 
 You should run this in a screen or tmux session.
 
-```
+```bash
 nextflow run -latest andersenlab/nil-ril-nf -resume
 ```
 
 ## Running the pipeline locally
 
-When running locally, the pipeline will run using the `andersenlab/nil-ril-nf` docker image. You must have docker installed. You will need to obtain a reference genome to run the alignment with as well. You can use the following command to obtain the reference:
+When running locally, the pipeline will run using the several different docker images. You must have docker installed. You will need to obtain a reference genome to run the alignment with as well. You can use the following command to obtain the reference:
 
+```bash
+curl ftp://wormbase.org/pub/wormbase/releases/WS276/species/c_elegans/PRJNA13758/c_elegans.PRJNA13758.WS276.genomc.fa.gz > c_elegans.PRJNA13758.WS276.fa.gz
 ```
-curl ftp://wormbase.org/pub/wormbase/releases/WS276/species/c_elegans/PRJNA13758/c_elegans.PRJNA13758.WS276.genomc.fa.gz > WS276.fa.gz
+
+You will also need to build a `bwa mem` index or copy it from Rockfish:
+
+```bash
+for I in rpac amb ann pac bwt rbwt rsa sa; do
+  scp <JHED_ID>@login.rockfish.jhu.edu:/vast/eande106/data/c_elegans/genomes/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genomc.fa.gz.${I} ./
+done
 ```
 
 Run the pipeline locally with:
@@ -118,7 +126,7 @@ You should use `--debug` for testing/debugging purposes. This will run the debug
 
 For example:
 
-```
+```bash
 nextflow run -latest andersenlab/nil-ril-nf --debug
 ```
 
@@ -166,7 +174,7 @@ Set `--fqs` as `--fqs=/the/path/to/fq_sheet.tsv`.
 
 Before you begin, you will need access to a VCF with high-coverage data from the parental strains. In general, this can be obtained using the latest release of the wild-isolate data which is usually located in the `/vast/eande106/data` analysis folder (on Rockfish). For example, the most recent _C. elegans_ VCF could be found here:
 
-```
+```bash
 /vast/eande106/data/c_elegans/WI/variation/20210121/vcf/WI.20210121.hard-filter.isotype.vcf.gz
 ```
 
@@ -178,7 +186,7 @@ Set the parental VCF as `--vcf=/the/path/to/WI.20210121.hard-filter.isotype.vcf.
 
 A fasta reference indexed with BWA. For example, the _C. elegans_ reference could be found here:
 
-```
+```bash
 /vast/eande106/data/c_elegans/genomes/PRJNA13758/WS276/c_elegans.PRJNA13758.WS276.genome.fa.gz
 ```
 

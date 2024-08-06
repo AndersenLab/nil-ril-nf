@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript --vanilla
-library(tidyverse)
+library(readr)
+library(ggplot2)
+library(dplyr)
 
 fq_coverage <- readr::read_tsv("fq_coverage.tsv")
 SM_coverage <- readr::read_tsv("SM_coverage.tsv")

@@ -139,9 +139,9 @@ workflow {
         .combine(generate_sitelist.out.site_list)
         .combine(Channel.fromPath(genome_path))
         .combine(Channel.of(genome_basename)) | split_fq
-    // split_fq.out | fq_concordance
-    // all_fq_concord = fq_concordance.out.toSortedList()
-    // combine_fq_concordance( all_fq_concord )
+    split_fq.out | fq_concordance
+    all_fq_concord = fq_concordance.out.toSortedList()
+    combine_fq_concordance( all_fq_concord )
     perform_alignment.out.aligned_bams | fq_coverage
     fq_coverage.out
         .toSortedList() | fq_coverage_merge
@@ -160,7 +160,7 @@ workflow {
         .groupTuple() 
         .join(generate_sitelist.out.parental_vcf_only) | concatenate_union_vcf
 
-    // // stats
+    // stats
     merge_bam.out.merged_SM | SM_bam_stats
     SM_bam_stats.out
         .toSortedList() | combine_SM_bam_stats
@@ -175,23 +175,23 @@ workflow {
     fq_bam_stats.out
         .toSortedList() | combine_bam_stats
 
-    // // hmm
+    // hmm
     concatenate_union_vcf.out | output_hmm
     concatenate_union_vcf.out | output_hmm_fill | plot_hmm
     concatenate_union_vcf.out | output_hmm_vcf | output_tsv
 
-    // // plot issues
-    // fq_coverage_merge.out.fq_coverage_plot
-    //     .combine(combine_idx_stats.out)
-    //     .combine(SM_coverage_merge.out.SM_coverage_plot)
-    //     .combine(format_duplicates.out) | generate_issue_plots 
+    // plot issues
+    fq_coverage_merge.out.fq_coverage_plot
+        .combine(combine_idx_stats.out)
+        .combine(SM_coverage_merge.out.SM_coverage_plot)
+        .combine(format_duplicates.out) | generate_issue_plots 
 
-    // // generate cross object geno for RILs
-    // if(params.cross_obj) {
-    //     output_hmm_vcf.out
-    //         .combine(SM_coverage_merge.out.SM_coverage_plot)
-    //         .combine(output_hmm_fill.out) | generate_cross_object
-    // }
+    // generate cross object geno for RILs
+    if(params.cross_obj) {
+        output_hmm_vcf.out
+            .combine(SM_coverage_merge.out.SM_coverage_plot)
+            .combine(output_hmm_fill.out) | generate_cross_object
+    }
 
 
 }
