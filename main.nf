@@ -120,8 +120,8 @@ workflow {
                 SM, ID, LB, file(fq1), file(fq2), genome_path, genome_basename] }
     }
 
-    Channel.fromFile(params.vcf, checkIfExists: true)
-    Channel.fromFile(params.reference, checkIfExists: true)
+    Channel.fromPath(params.vcf, checkIfExists: true)
+    Channel.fromPath(params.reference, checkIfExists: true)
 
     // generate site list
     Channel.fromPath(params.vcf) | generate_sitelist

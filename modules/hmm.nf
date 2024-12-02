@@ -2,6 +2,7 @@
 process output_hmm {
 
     label "vcfkit"
+    label "sm"
 
     publishDir params.out + "/hmm", mode: 'copy'
 
@@ -20,6 +21,7 @@ process output_hmm {
 process output_hmm_fill {
 
     label "vcfkit"
+    label "sm"
 
     publishDir params.out + "/hmm", mode: 'copy'
 
@@ -39,6 +41,7 @@ process output_hmm_fill {
 process output_hmm_vcf {
 
     label "vcfkit"
+    label "sm"
 
     publishDir params.out + "/hmm", mode: 'copy'
 
@@ -59,6 +62,7 @@ process output_hmm_vcf {
 process plot_hmm {
 
     label "R"
+    label "xs"
 
     publishDir params.out + "/hmm", mode: 'copy'
 

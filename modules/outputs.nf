@@ -2,6 +2,7 @@
 process generate_issue_plots {
 
     label "R"
+    label "xs"
 
     publishDir params.out + "/plots", mode: 'copy'
 
@@ -26,6 +27,7 @@ process generate_issue_plots {
 process output_tsv {
 
     label "annotation"
+    label "sm"
 
     publishDir params.out + "/hmm", mode: 'copy'
 
@@ -45,6 +47,7 @@ process output_tsv {
 process generate_cross_object {
 
     label "vcfkit"
+    label "sm"
 
     publishDir params.out + "/cross_object", mode: 'copy'
 

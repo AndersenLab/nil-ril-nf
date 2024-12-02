@@ -24,6 +24,7 @@ process format_duplicates {
 process merge_bam {
 
     label "trim"
+    label "sm"
 
     publishDir params.out + "/bam", mode: 'copy'
 

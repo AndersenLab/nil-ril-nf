@@ -47,6 +47,7 @@ process combine_bam_stats {
 process SM_bam_stats {
 
     label "trim"
+    label "sm"
 
     tag { SM }
 
@@ -87,6 +88,7 @@ process combine_SM_bam_stats {
 process idx_stats_SM {
     
     label "trim"
+    label "xs"
 
     tag { SM }
 
