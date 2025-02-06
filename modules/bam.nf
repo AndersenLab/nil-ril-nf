@@ -42,10 +42,10 @@ process merge_bam {
     """
     count=`echo ${bams.join(" ")} | tr ' ' '\\n' | wc -l`
     if [ "\${count}" -eq "1" ]; then
-        ln -s ${bams[0]} ${SM}.merged.bam
-        ln -s ${indices[0]} ${SM}.merged.bam.bai
+        mv ${bams[0]} ${SM}.merged.bam
+        mv ${indices[0]} ${SM}.merged.bam.bai
     else
-        samtools merge -@ ${task.cpus} -o ${SM}.merged.bam ${bams.join(" ")}
+        samtools merge -@ ${task.cpus} ${SM}.merged.bam ${bams.join(" ")}
         samtools index -@ ${task.cpus} ${SM}.merged.bam
     fi
     picard MarkDuplicates I=${SM}.merged.bam \\
