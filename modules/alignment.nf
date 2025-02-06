@@ -44,7 +44,7 @@ process perform_alignment {
     tag { ID }
 
     label "trim"
-    label "sm"
+    label "md"
 
     input:
         tuple val(SM), val(ID), val(LB), file(fq1), file(fq2), path(genome_path), val(genome_basename)
