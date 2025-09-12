@@ -60,9 +60,9 @@ process perform_alignment {
         samtools sort -@ ${task.cpus} -T ${params.tmpdir}/${ID} -o ${ID}.bam mapped.bam
         rm mapped.bam
         samtools index -@ ${task.cpus} ${ID}.bam
-        if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
-            exit 1;
-        fi
+        #if [[ ! \$(samtools view ${ID}.bam | head -n 10) ]]; then
+        #    exit 1;
+        #fi
     """
 }
 

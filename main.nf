@@ -90,7 +90,7 @@ include {kmer_counting; merge_kmer} from './modules/kmers.nf'
 include {generate_sitelist; perform_alignment; fq_idx_stats; fq_combine_idx_stats} from './modules/alignment.nf'
 include {fq_bam_stats; combine_bam_stats; combine_SM_bam_stats} from './modules/stats.nf'
 include {idx_stats_SM; combine_idx_stats; SM_bam_stats} from './modules/stats.nf'
-include {merge_bam; format_duplicates} from './modules/bam.nf'
+include {merge_bam; format_duplicates; mark_duplicates; index_bam} from './modules/bam.nf'
 include {fq_coverage; fq_coverage_merge; SM_coverage; SM_coverage_merge} from './modules/coverage.nf'
 include {split_fq; fq_concordance; combine_fq_concordance} from './modules/variants.nf'
 include {call_variants_union; generate_union_vcf_list; stat_tsv} from './modules/variants.nf'
@@ -132,9 +132,6 @@ workflow {
 
     // alignment
     fqs | perform_alignment
-    perform_alignment.out.sample_aligned_bams.groupTuple() | merge_bam
-    merge_bam.out.merged_SM | SM_coverage
-    SM_coverage.out.toSortedList() | SM_coverage_merge
     perform_alignment.out.aligned_bams
         .combine(generate_sitelist.out.site_list)
         .combine(Channel.fromPath(genome_path))
@@ -145,11 +142,34 @@ workflow {
     perform_alignment.out.aligned_bams | fq_coverage
     fq_coverage.out
         .toSortedList() | fq_coverage_merge
-    merge_bam.out.duplicates_file
+
+    mark_duplicates( perform_alignment.out.sample_aligned_bams )
+    index_bam( mark_duplicates.out.deduped )
+    
+    mark_duplicates.out.duplicates_file
         .toSortedList() | format_duplicates
 
+    // Merge mapped reads by strain and remove duplicate reads
+    // First split into samples with 1 bam and those with more than one
+    index_bam.out.bam
+        .groupTuple()
+        .map { sm, bam, bai -> [sm, bam, bai, bam.size()]}
+        .branch { strain, bam, bai, count ->
+                need_merge: count > 1
+                no_merge: count == 1 }
+            .set{ merging }
+        
+    merging.need_merge
+        .map{ sm, bam, bai, count -> [sm, bam, bai] } | merge_bam
+    merged_bams = merge_bam.out.merged
+        .mix( merging.no_merge
+            .map { strain, bam, bai, count -> [strain, bam, bai] } )
+
+    merged_bams | SM_coverage
+    SM_coverage.out.toSortedList() | SM_coverage_merge
+
     // call variants
-    merge_bam.out.merged_SM
+    index_bam.out.bam 
         .combine(generate_sitelist.out.site_list)
         .combine(Channel.fromPath(genome_path))
         .combine(Channel.of(genome_basename)) | call_variants_union
@@ -161,10 +181,10 @@ workflow {
         .join(generate_sitelist.out.parental_vcf_only) | concatenate_union_vcf
 
     // stats
-    merge_bam.out.merged_SM | SM_bam_stats
+    index_bam.out.bam | SM_bam_stats
     SM_bam_stats.out
         .toSortedList() | combine_SM_bam_stats
-    merge_bam.out.merged_SM | idx_stats_SM
+    index_bam.out.bam | idx_stats_SM
     idx_stats_SM.out
         .toSortedList() | combine_idx_stats
     concatenate_union_vcf.out | stat_tsv

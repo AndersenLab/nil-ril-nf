@@ -24,36 +24,81 @@ process format_duplicates {
 process merge_bam {
 
     label "trim"
-    label "sm"
+    label "custom"
+
+    tag { SM }
+
+    errorStrategy 'retry'
+    time { 2.hour * task.attempt }
+    cpus = { 2 * task.attempt }
+    memory = { 8.GB * task.attempt }
 
     publishDir params.out + "/bam", mode: 'copy'
+
+    input:
+        tuple val(SM), path(bams), path(indices)
+
+    output:
+        tuple val(SM), file("${SM}.bam"), file("${SM}.bam.bai"), emit: merged
+
+    """
+    samtools merge -@ ${task.cpus} ${SM}.bam ${bams.join(" ")}
+    samtools index -@ ${task.cpus} ${SM}.bam
+    """
+}
+
+process mark_duplicates {
+
+    label "alignment"
+    label "custom"
+
+    errorStrategy 'retry'
+    time { 2.hour * task.attempt }
+    cpus = { 2 * task.attempt }
+    memory = { 8.GB * task.attempt }
+    //publishDir params.out + "/bam", mode: 'copy'
 
     tag { SM }
 
     errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
 
     input:
-        tuple val(SM), path(bams), path(indices)
+        tuple val(SM), path("duplicate_${SM}.bam"), path(index)
 
     output:
-        tuple val(SM), file("${SM}.bam"), file("${SM}.bam.bai"), emit: merged_SM
+        tuple val(SM), file("${SM}.bam"), emit: deduped
         path "${SM}.duplicates.txt", emit: duplicates_file
 
     """
-    count=`echo ${bams.join(" ")} | tr ' ' '\\n' | wc -l`
-    if [ "\${count}" -eq "1" ]; then
-        mv ${bams[0]} ${SM}.merged.bam
-        mv ${indices[0]} ${SM}.merged.bam.bai
-    else
-        samtools merge -@ ${task.cpus} ${SM}.merged.bam ${bams.join(" ")}
-        samtools index -@ ${task.cpus} ${SM}.merged.bam
-    fi
-    picard MarkDuplicates I=${SM}.merged.bam \\
+    picard MarkDuplicates I=duplicate_${SM}.bam \\
                             O=${SM}.bam \\
                             M=${SM}.duplicates.txt \\
-                            VALIDATION_STRINGENCY=LENIENT \\
-                            REMOVE_DUPLICATES=true
-    samtools index -@ ${task.cpus} ${SM}.bam
+                            VALIDATION_STRINGENCY=SILENT \\
+                            REMOVE_DUPLICATES=true \\
+                            TAGGING_POLICY=All \\
+                            REMOVE_SEQUENCING_DUPLICATES=true
     """
 }
 
+
+process index_bam {
+
+    label "trim"
+    label "xs"
+
+    //publishDir params.out + "/bam", mode: 'copy'
+
+    tag { SM }
+
+    errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
+
+    input:
+        tuple val(SM), path("${SM}.bam")
+
+    output:
+        tuple val(SM), file("${SM}.bam"), file("${SM}.bam.bai"), emit: bam
+
+    """
+    samtools index -@ ${task.cpus} ${SM}.bam
+    """
+}
