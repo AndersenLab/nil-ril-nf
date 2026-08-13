@@ -9,8 +9,11 @@ process generate_sitelist {
 
     publishDir "${params.out}/sitelist", mode: 'copy'
     
-    label "annotation"
     label "sm"
+    label "annotation"
+    cpus {2 * task.attempts}
+    time {1.hour * task.attempts}
+
 
     input:
         file("parental.vcf.gz")
