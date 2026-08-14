@@ -48,8 +48,8 @@ process perform_alignment {
 
     label "trim"
     label "md"
-    cpus {4 * task.attempts}
-    time {1.hour * task.attempts}
+    cpus {4 * task.attempt}
+    time {1.hour * task.attempt}
 
     input:
         tuple val(SM), val(ID), val(LB), file(fq1), file(fq2), path(genome_path), val(genome_basename)
