@@ -50,6 +50,8 @@ process perform_alignment {
     label "md"
     cpus {4 * task.attempt}
     time {1.hour * task.attempt}
+    errorStrategy 'retry'
+    maxRetries 3
 
     input:
         tuple val(SM), val(ID), val(LB), file(fq1), file(fq2), path(genome_path), val(genome_basename)
