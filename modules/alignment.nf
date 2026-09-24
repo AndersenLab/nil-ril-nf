@@ -48,8 +48,8 @@ process perform_alignment {
 
     label "trim"
     label "md"
-    cpus {4 * task.attempt}
-    time {1.hour * task.attempt}
+    cpus {6 * task.attempt}
+    time {6.hour * task.attempt}
     errorStrategy 'retry'
     maxRetries 3
 
