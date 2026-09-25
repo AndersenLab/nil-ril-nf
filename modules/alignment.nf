@@ -47,7 +47,6 @@ process perform_alignment {
     tag { ID }
 
     label "trim"
-    label "md"
     cpus {6 * task.attempt}
     time {6.hour * task.attempt}
     errorStrategy 'retry'
