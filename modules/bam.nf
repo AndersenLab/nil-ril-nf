@@ -69,14 +69,18 @@ process mark_duplicates {
         tuple val(SM), file("${SM}.bam"), emit: deduped
         path "${SM}.duplicates.txt", emit: duplicates_file
 
+    script:
+    def half_mem_gb = task.memory.toGiga() / 2
     """
-    picard MarkDuplicates I=duplicate_${SM}.bam \\
-                            O=${SM}.bam \\
-                            M=${SM}.duplicates.txt \\
-                            VALIDATION_STRINGENCY=SILENT \\
-                            REMOVE_DUPLICATES=true \\
-                            TAGGING_POLICY=All \\
-                            REMOVE_SEQUENCING_DUPLICATES=true
+    picard MarkDuplicates \\
+        -Xmx${half_mem_gb}g \\
+        I=duplicate_${SM}.bam \\
+        O=${SM}.bam \\
+        M=${SM}.duplicates.txt \\
+        VALIDATION_STRINGENCY=SILENT \\
+        REMOVE_DUPLICATES=true \\
+        TAGGING_POLICY=All \\
+        REMOVE_SEQUENCING_DUPLICATES=true
     """
 }
 
