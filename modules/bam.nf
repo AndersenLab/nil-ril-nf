@@ -70,9 +70,10 @@ process mark_duplicates {
         path "${SM}.duplicates.txt", emit: duplicates_file
 
     script:
+    def java_mem_gb = task.memory.toGiga() / 4
     """
     picard MarkDuplicates \\
-        -Xmx${task.memory.toGiga()}g \\
+        -Xmx${java_mem_gb}g \\
         I=duplicate_${SM}.bam \\
         O=${SM}.bam \\
         M=${SM}.duplicates.txt \\
