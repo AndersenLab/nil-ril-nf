@@ -12,7 +12,7 @@ process generate_sitelist {
     label "sm"
     label "annotation"
     cpus {2 * task.attempts}
-    time {1.hour * task.attempts}
+    time {3.hour * task.attempts}
 
 
     input:
